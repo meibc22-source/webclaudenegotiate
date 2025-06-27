@@ -1,2 +1,59 @@
-# webclaudenegotiate
-web version of negotiate application
+# Negotiation Legends - AI-Powered Training Platform
+
+This is a sophisticated React-based web application designed as an interactive negotiation training platform.
+
+## Core Purpose
+The app simulates car buying negotiations with AI-powered historical figures, specifically featuring Genghis Khan as the primary negotiation opponent. It's designed to help users practice and improve their negotiation skills in a gamified environment.
+
+## Key Features
+
+### 1. Voice AI Integration
+- Uses Web Speech API for speech recognition and synthesis
+- Allows users to have actual voice conversations with AI personas
+- Real-time speech-to-text and text-to-speech capabilities
+- Built for the "Voice AI Challenge" mentioned in the code
+
+### 2. Historical Persona System
+- Currently features Genghis Khan as a car salesman with unique personality traits
+- Each persona has defined stats (aggression, patience, flexibility, etc.)
+- Personas have characteristic speaking patterns and negotiation styles
+- Framework ready for additional historical figures (Benjamin Franklin, John D. Rockefeller shown as "coming soon")
+
+### 3. Real Car Market Data
+- Integrates live car market information with pricing, trends, and specifications
+- Calculates realistic prices based on make, model, year, and market factors
+- Includes MSRP, trade-in values, private party values, and market trends
+- Features popular car models from major manufacturers
+
+### 4. Multi-Screen Interface
+- **Home Screen**: Landing page with features overview and persona selection
+- **Car Selection**: Browse available vehicles with detailed market data
+- **Negotiation Arena**: Interactive chat interface for conducting negotiations
+- **Settings/Demo**: Information about features and hackathon participation
+
+### 5. Gamification Elements
+- User stats tracking (level, experience, wins, total negotiations)
+- Achievement system ready for implementation
+- Progress tracking and skill development metrics
+
+## Technical Stack
+- **Frontend**: React 18 with modern hooks (useState, useEffect)
+- **Styling**: Tailwind CSS for responsive, modern UI design
+- **Icons**: Lucide React icon library
+- **Build Tool**: Vite for fast development and building
+- **Voice**: Web Speech API integration
+
+## Competition Context
+The app was built for the "Bolt 2025 Hackathon Competition" with specific focus on:
+- Voice AI Challenge ($25K prize)
+- Deploy Challenge ($25K prize)
+- Innovation in AI training applications
+
+## Current State
+- Fully functional Genghis Khan persona with voice capabilities
+- Complete car selection and market data system
+- Working negotiation interface with both text and voice input
+- Professional UI inspired by modern design standards
+- Ready for deployment and demonstration
+
+The application represents a creative blend of historical education, AI technology, and practical skill training, packaged in an engaging, gamified experience for learning negotiation techniques.
