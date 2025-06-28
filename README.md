@@ -10,7 +10,7 @@ The app simulates car buying negotiations with AI-powered historical figures, sp
 ### 1. Voice AI Integration
 - Uses Web Speech API for speech recognition and synthesis
 - Allows users to have actual voice conversations with AI personas
-- Real-time speech-to-text and text-to-speech capabilities
+- Real-time speech-to-text and text-to-speech capabilities, including spacebar activation in negotiation mode
 - Built for the "Voice AI Challenge" mentioned in the code
 
 ### 2. Historical Persona System

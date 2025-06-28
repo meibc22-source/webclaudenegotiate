@@ -420,10 +420,51 @@ export default function NegotiationLegends() {
     wins: 0,
     totalNegotiations: 0
   });
+  const [isSpacebarPressed, setIsSpacebarPressed] = useState(false); // New state for spacebar
 
   useEffect(() => {
     loadMarketCars();
   }, []);
+
+  // Effect for handling spacebar press for voice input
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (currentScreen === 'negotiation' && isVoiceEnabled && e.code === 'Space') {
+        // Check if the message input field is focused
+        const messageInput = document.getElementById('userMessageInput');
+        if (messageInput && document.activeElement === messageInput) {
+          // If input is focused, allow spacebar to function as normal text input
+          return;
+        }
+
+        // Prevent default spacebar behavior (e.g., page scroll)
+        e.preventDefault(); 
+        // Only start listening if not already listening and not already pressed
+        if (!voiceAI.isListening && !isSpacebarPressed) {
+          setIsSpacebarPressed(true);
+          startListening();
+        }
+      }
+    };
+
+    const handleKeyUp = (e) => {
+      if (currentScreen === 'negotiation' && isVoiceEnabled && e.code === 'Space') {
+        // Only stop listening if it was started by spacebar press
+        if (isSpacebarPressed) {
+          setIsSpacebarPressed(false);
+          stopListening();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [currentScreen, isVoiceEnabled, isSpacebarPressed, voiceAI, startListening, stopListening]);
 
   const loadMarketCars = async () => {
     setIsLoadingCars(true);
@@ -1044,7 +1085,7 @@ export default function NegotiationLegends() {
                           <div className="text-sm">
                             {voiceStatus === 'connecting' && 'Connecting...'}
                             {voiceStatus === 'connected' && 'Ready'}
-                            {voiceStatus === 'listening' && 'Listening...'}
+                            {voiceStatus === 'listening' && 'Listening (Press Spacebar)'}
                             {voiceStatus === 'speaking' && 'Khan Speaking...'}
                           </div>
                         </div>
@@ -1097,6 +1138,7 @@ export default function NegotiationLegends() {
                 <div className="p-6 border-t border-gray-200">
                   <div className="flex space-x-4">
                     <input
+                      id="userMessageInput" // Added ID for targeting
                       type="text"
                       value={userMessage}
                       onChange={(e) => setUserMessage(e.target.value)}
@@ -1114,7 +1156,7 @@ export default function NegotiationLegends() {
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    {isVoiceEnabled ? 'Hold the microphone button to speak, or type your message.' : 'Enable voice mode to speak with Khan directly.'}
+                    {isVoiceEnabled ? 'Hold the microphone button or Spacebar to speak, or type your message.' : 'Enable voice mode to speak with Khan directly.'}
                   </p>
                 </div>
               </div>
