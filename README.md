@@ -56,4 +56,11 @@ The app was built for the "Bolt 2025 Hackathon Competition" with specific focus 
 - Professional UI inspired by modern design standards
 - Ready for deployment and demonstration
 
+## Internal Testing Framework
+The application utilizes a robust internal testing framework to ensure code quality and reliability, particularly for critical components like Voice AI.
+- **Frameworks:** Jest for unit and integration testing, with React Testing Library for UI component testing.
+- **Environment:** Tests run in a JSDOM environment, simulating a browser for accurate DOM interaction testing.
+- **Configuration:** Configured with `babel-jest` for modern JavaScript and React syntax support, and `@testing-library/jest-dom` for extended DOM matchers.
+- **Coverage:** Comprehensive test coverage for the `VoiceAI` class, including microphone permissions, connection lifecycle, speech recognition callbacks, and speech synthesis. Mocking of browser APIs (SpeechRecognition, SpeechSynthesis) ensures isolated and efficient tests.
+
 The application represents a creative blend of historical education, AI technology, and practical skill training, packaged in an engaging, gamified experience for learning negotiation techniques.
