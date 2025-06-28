@@ -365,40 +365,9 @@ export class CarMarketDataService {
 }
 
 // Genghis Khan Persona Data
-const genghisKhanPersona = {
-  id: 'genghis_khan',
-  name: 'Genghis Khan',
-  title: 'The Conquering Salesman',
-  avatar: '👑',
-  description: 'The Great Khan now rules the car lot with the same iron will that built the largest empire in history.',
-  elevenLabsVoiceId: 'RqYO5vKm63p7RwjA4a3y',
-  stats: {
-    aggression: 9,
-    dataReliance: 3,
-    patience: 2,
-    flexibility: 4,
-    emotionalAppeal: 1,
-    riskTolerance: 8
-  }
-};
-
-
-const benjaminFranklinPersona = {
-  id: 'benjamin_franklin',
-  name: 'Benjamin Franklin',
-  title: 'The Diplomatic Dealer',
-  avatar: '🎩',
-  description: 'Master of charm and persuasion, uses wit and wisdom to close deals.',
-  elevenLabsVoiceId: 'LVWu6fUcVpyUDlzDrQ8u',
-  stats: {
-    diplomacy: 8,
-    patience: 9,
-    wit: 10,
-    flexibility: 7,
-    emotionalAppeal: 8,
-    riskTolerance: 3
-  }
-};
+import genghisKhanPersona from './personas/genghisKhan';
+import benjaminFranklinPersona from './personas/benjaminFranklin';
+import johnDRockefellerPersona from './personas/johnDRockefeller';
 
 export default function NegotiationLegends() {
   const [currentScreen, setCurrentScreen] = useState('home');
@@ -454,7 +423,7 @@ export default function NegotiationLegends() {
       
       try {
         const conversationId = await voiceAI.connect(
-          (message) => {
+          async (message) => { // Changed to async here
             if (message.type === 'user_transcript') {
               setInterimTranscript('');
               
@@ -465,7 +434,7 @@ export default function NegotiationLegends() {
                 isVoice: true
               };
               
-              const personaResponse = generatePersonaResponse(selectedPersona, message.content);
+              const personaResponse = await generatePersonaResponse(selectedPersona, message.content, conversation); // Await and pass conversation
               const personaMessage = {
                 speaker: selectedPersona.id,
                 message: personaResponse,
@@ -531,43 +500,60 @@ export default function NegotiationLegends() {
     }
   };
 
-  const generatePersonaResponse = (persona, userInput) => {
-    const lowerInput = userInput.toLowerCase();
-    
-    if (persona.id === 'genghis_khan') {
-      if (lowerInput.includes('price') || lowerInput.includes('expensive') || lowerInput.includes('cost')) {
-        return "The price reflects this vehicle's power to conquer highways! I do not negotiate with those who question the value of victory!";
-      } else if (lowerInput.includes('think') || lowerInput.includes('consider') || lowerInput.includes('decide')) {
-        return "Warriors do not hesitate when opportunity presents itself! While you ponder, three other buyers circle like vultures!";
-      } else if (lowerInput.includes('other') || lowerInput.includes('compare') || lowerInput.includes('shop')) {
-        return "You may ride to distant dealerships as my scouts once rode distant lands. You will find only inferior steeds!";
-      } else {
-        const responses = [
-          "The Khan hears your words. What vehicle shall serve your campaigns?",
-          "You stand before the greatest seller of steeds in this realm! State your needs clearly!",
-          "I have conquered markets as I once conquered nations. Choose wisely!",
-          "The Great Khan does not waste time with idle chatter. Do you seek a vehicle?"
-        ];
-        return responses[Math.floor(Math.random() * responses.length)];
-      }
-    } else if (persona.id === 'benjamin_franklin') {
-      if (lowerInput.includes('price') || lowerInput.includes('expensive') || lowerInput.includes('cost')) {
-        return "A penny saved is a penny earned, my friend. Let us discuss how we might find a price agreeable to both our purses.";
-      } else if (lowerInput.includes('think') || lowerInput.includes('consider') || lowerInput.includes('decide')) {
-        return "Take your time, for haste makes waste. A well-considered decision benefits all.";
-      } else if (lowerInput.includes('other') || lowerInput.includes('compare') || lowerInput.includes('shop')) {
-        return "Comparison is the thief of joy, but also a path to wisdom. Yet, I believe you'll find our offer quite reasonable.";
-      } else {
-        const responses = [
-          "Good day! How may I be of assistance in your pursuit of a fine automobile?",
-          "Industry and frugality are the means of procuring wealth. Let's talk about value.",
-          "I find that a calm discussion often leads to the most agreeable outcomes. What's on your mind?",
-          "Let us reason together. What brings you to consider this particular conveyance?"
-        ];
-        return responses[Math.floor(Math.random() * responses.length)];
-      }
+  const generatePersonaResponse = async (persona, userInput, conversationHistory) => {
+    const DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY;
+    const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+
+    if (!DEEPSEEK_API_KEY) {
+      console.error("Deepseek API key is not set. Cannot generate AI response.");
+      return "I am unable to respond at the moment. My AI is offline.";
     }
-    return "I am an AI persona. How can I help you?"; // Default fallback
+
+    const messages = [
+      {
+        role: "system",
+        content: `You are ${persona.name}, also known as "${persona.title}". Your persona is: "${persona.description}". Your negotiation stats are: ${JSON.stringify(persona.stats)}.
+        You are a car salesman. Respond concisely and in character, reflecting your persona's traits.
+        Current negotiation context: The user is interested in a car. Focus on the car sale.
+        `
+      },
+      ...conversationHistory.slice(-5).map(msg => ({ // Include last 5 messages for context
+        role: msg.speaker === 'user' ? 'user' : 'assistant',
+        content: msg.message
+      })),
+      {
+        role: "user",
+        content: userInput
+      }
+    ];
+
+    try {
+      const response = await fetch(DEEPSEEK_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat", // Or another appropriate Deepseek model
+          messages: messages,
+          max_tokens: 150,
+          temperature: 0.7
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Deepseek API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content.trim();
+
+    } catch (error) {
+      console.error("Error generating persona response with Deepseek:", error);
+      return "My apologies, I seem to have lost my train of thought. Please repeat that.";
+    }
   };
 
   const startNegotiation = (car) => {
@@ -582,7 +568,7 @@ export default function NegotiationLegends() {
     setCurrentScreen('negotiation');
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!userMessage.trim()) return;
 
     const newUserMessage = {
@@ -593,7 +579,7 @@ export default function NegotiationLegends() {
 
     const personaResponse = {
       speaker: selectedPersona.id,
-      message: generatePersonaResponse(selectedPersona, userMessage),
+      message: await generatePersonaResponse(selectedPersona, userMessage, conversation), // Await and pass conversation
       timestamp: new Date()
     };
 
@@ -648,20 +634,104 @@ export default function NegotiationLegends() {
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button 
-                  onClick={() => setCurrentScreen('carSelection')}
-                  className="group inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                >
-                  <Play className="mr-2 h-5 w-5" />
-                  Start Training Now
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                </button>
-                <button 
                   onClick={() => setCurrentScreen('settings')}
                   className="inline-flex items-center px-8 py-4 bg-white text-gray-700 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 hover:bg-gray-50"
                 >
                   <Settings className="mr-2 h-5 w-5" />
                   View Demo
                 </button>
+              </div>
+            </div>
+
+            {/* Move "Choose Your Opponent" section here */}
+            <div className="bg-white rounded-3xl shadow-xl p-8 mb-16">
+              <div className="text-center mb-8">
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">Choose Your Opponent</h2>
+                <p className="text-gray-600">Each historical figure brings unique negotiation styles and challenges</p>
+              </div>
+              
+              <div className="grid md:grid-cols-3 gap-6">
+                <div className="group relative overflow-hidden bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 rounded-2xl p-6 hover:border-red-400 transition-all duration-300 cursor-pointer transform hover:scale-105">
+                  <div className="text-center">
+                    <img src={genghisKhanPersona.avatar} alt={genghisKhanPersona.name} className="h-24 w-24 mx-auto mb-4 rounded-full object-cover" />
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">{genghisKhanPersona.name}</h3>
+                    <p className="text-sm text-gray-600 mb-4">{genghisKhanPersona.title}</p>
+                    <p className="text-xs text-gray-500 mb-4">{genghisKhanPersona.description}</p>
+                    
+                    <div className="text-left mb-4">
+                      <PersonaStat label="Aggression" value={genghisKhanPersona.stats.aggression} />
+                      <PersonaStat label="Patience" value={genghisKhanPersona.stats.patience} />
+                      <PersonaStat label="Flexibility" value={genghisKhanPersona.stats.flexibility} />
+                    </div>
+                    
+                    <button 
+                      onClick={() => {
+                        setSelectedPersona(genghisKhanPersona);
+                        setCurrentScreen('carSelection');
+                      }}
+                      className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 px-4 rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-300 shadow-lg font-semibold"
+                    >
+                      Challenge the Khan
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-6 hover:border-blue-400 transition-all duration-300 cursor-pointer opacity-60">
+                  <div className="text-center">
+                    {benjaminFranklinPersona.avatar.startsWith('/') ? (
+                      <img src={benjaminFranklinPersona.avatar} alt={benjaminFranklinPersona.name} className="h-24 w-24 mx-auto mb-4 rounded-full object-cover" />
+                    ) : (
+                      <div className="text-6xl mb-4">{benjaminFranklinPersona.avatar}</div>
+                    )}
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">{benjaminFranklinPersona.name}</h3>
+                    <p className="text-sm text-gray-600 mb-4">{benjaminFranklinPersona.title}</p>
+                    <p className="text-xs text-gray-500 mb-4">{benjaminFranklinPersona.description}</p>
+                    
+                    <div className="text-left mb-4">
+                      <PersonaStat label="Diplomacy" value={benjaminFranklinPersona.stats.diplomacy} />
+                      <PersonaStat label="Patience" value={benjaminFranklinPersona.stats.patience} />
+                      <PersonaStat label="Wit" value={benjaminFranklinPersona.stats.wit} />
+                    </div>
+                    
+                    <button 
+                      onClick={() => {
+                        setSelectedPersona(benjaminFranklinPersona);
+                        setCurrentScreen('carSelection');
+                      }}
+                      className="w-full bg-gradient-to-r from-blue-400 to-blue-500 text-white py-3 px-4 rounded-xl font-semibold opacity-50 cursor-not-allowed">
+                      Coming Soon
+                    </button>
+                  </div>
+                </div>
+
+                <div className="group relative overflow-hidden bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-6 hover:border-green-400 transition-all duration-300 cursor-pointer">
+                  <div className="text-center">
+                    {johnDRockefellerPersona.avatar.startsWith('/') ? (
+                      <img src={johnDRockefellerPersona.avatar} alt={johnDRockefellerPersona.name} className="h-24 w-24 mx-auto mb-4 rounded-full object-cover" />
+                    ) : (
+                      <div className="text-6xl mb-4">{johnDRockefellerPersona.avatar}</div>
+                    )}
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">{johnDRockefellerPersona.name}</h3>
+                    <p className="text-sm text-gray-600 mb-4">{johnDRockefellerPersona.title}</p>
+                    <p className="text-xs text-gray-500 mb-4">{johnDRockefellerPersona.description}</p>
+                    
+                    <div className="text-left mb-4">
+                      <PersonaStat label="Strategy" value={johnDRockefellerPersona.stats.strategy} />
+                      <PersonaStat label="Data Focus" value={johnDRockefellerPersona.stats.dataFocus} />
+                      <PersonaStat label="Patience" value={johnDRockefellerPersona.stats.patience} />
+                    </div>
+                    
+                    <button 
+                      onClick={() => {
+                        setSelectedPersona(johnDRockefellerPersona);
+                        setCurrentScreen('carSelection');
+                      }}
+                      className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 px-4 rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg font-semibold"
+                    >
+                      Challenge Rockefeller
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -727,104 +797,6 @@ export default function NegotiationLegends() {
                 <div className="flex items-center text-green-600 font-medium">
                   <span>Live Market Data</span>
                   <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-3xl shadow-xl p-8">
-              <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-gray-900 mb-4">Choose Your Opponent</h2>
-                <p className="text-gray-600">Each historical figure brings unique negotiation styles and challenges</p>
-              </div>
-              
-              <div className="grid md:grid-cols-3 gap-6">
-                <div className="group relative overflow-hidden bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 rounded-2xl p-6 hover:border-red-400 transition-all duration-300 cursor-pointer transform hover:scale-105">
-                  <div className="text-center">
-                    <div className="text-6xl mb-4">{genghisKhanPersona.avatar}</div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{genghisKhanPersona.name}</h3>
-                    <p className="text-sm text-gray-600 mb-4">{genghisKhanPersona.title}</p>
-                    <p className="text-xs text-gray-500 mb-4">{genghisKhanPersona.description}</p>
-                    
-                    <div className="text-left mb-4">
-                      <PersonaStat label="Aggression" value={genghisKhanPersona.stats.aggression} />
-                      <PersonaStat label="Patience" value={genghisKhanPersona.stats.patience} />
-                      <PersonaStat label="Flexibility" value={genghisKhanPersona.stats.flexibility} />
-                    </div>
-                    
-                    <button 
-                      onClick={() => {
-                        setSelectedPersona(genghisKhanPersona);
-                        setCurrentScreen('carSelection');
-                      }}
-                      className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 px-4 rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-300 shadow-lg font-semibold"
-                    >
-                      Challenge the Khan
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-6 hover:border-blue-400 transition-all duration-300 cursor-pointer opacity-60">
-                  <div className="text-center">
-                    <div className="text-6xl mb-4">{benjaminFranklinPersona.avatar}</div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{benjaminFranklinPersona.name}</h3>
-                    <p className="text-sm text-gray-600 mb-4">{benjaminFranklinPersona.title}</p>
-                    <p className="text-xs text-gray-500 mb-4">{benjaminFranklinPersona.description}</p>
-                    
-                    <div className="text-left mb-4">
-                      <PersonaStat label="Diplomacy" value={benjaminFranklinPersona.stats.diplomacy} />
-                      <PersonaStat label="Patience" value={benjaminFranklinPersona.stats.patience} />
-                      <PersonaStat label="Wit" value={benjaminFranklinPersona.stats.wit} />
-                    </div>
-                    
-                    <button 
-                      onClick={() => {
-                        setSelectedPersona(benjaminFranklinPersona);
-                        setCurrentScreen('carSelection');
-                      }}
-                      className="w-full bg-gradient-to-r from-blue-400 to-blue-500 text-white py-3 px-4 rounded-xl font-semibold opacity-50 cursor-not-allowed">
-                      Coming Soon
-                    </button>
-                  </div>
-                </div>
-
-                <div className="group relative overflow-hidden bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-6 hover:border-green-400 transition-all duration-300 cursor-pointer">
-                  <div className="text-center">
-                    <div className="text-6xl mb-4">💰</div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">John D. Rockefeller</h3>
-                    <p className="text-sm text-gray-600 mb-4">The Ruthless Businessman</p>
-                    <p className="text-xs text-gray-500 mb-4">Calculates every move, dominates through data and strategic thinking.</p>
-                    
-                    <div className="text-left mb-4">
-                      <PersonaStat label="Strategy" value={10} />
-                      <PersonaStat label="Data Focus" value={9} />
-                      <PersonaStat label="Patience" value={7} />
-                    </div>
-                    
-                    <button 
-                      onClick={() => {
-                        setSelectedPersona({
-                          id: 'john_d_rockefeller',
-                          name: 'John D. Rockefeller',
-                          title: 'The Ruthless Businessman',
-                          avatar: '💰',
-                          description: 'Calculates every move, dominates through data and strategic thinking.',
-                          elevenLabsVoiceId: 'MijWJwalV0YTI5cNnz0a',
-                          stats: {
-                            strategy: 10,
-                            dataFocus: 9,
-                            patience: 7,
-                            flexibility: 5,
-                            emotionalAppeal: 2,
-                            riskTolerance: 9
-                          }
-                        });
-                        setCurrentScreen('carSelection');
-                      }}
-                      className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 px-4 rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg font-semibold"
-                    >
-                      Challenge Rockefeller
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
@@ -993,7 +965,11 @@ export default function NegotiationLegends() {
               {/* Persona Info */}
               <div className={`bg-gradient-to-br ${selectedPersona.id === 'genghis_khan' ? 'from-red-50 to-orange-50 border-red-200' : 'from-blue-50 to-indigo-50 border-blue-200'} border-2 rounded-2xl p-6`}>
                 <div className="text-center">
-                  <div className="text-6xl mb-4">{selectedPersona.avatar}</div>
+                  {selectedPersona.avatar && selectedPersona.avatar.startsWith('/') ? (
+                    <img src={selectedPersona.avatar} alt={selectedPersona.name} className="h-24 w-24 mx-auto mb-4 rounded-full object-cover" />
+                  ) : (
+                    <div className="text-6xl mb-4">{selectedPersona.avatar}</div>
+                  )}
                   <h3 className="text-xl font-bold text-gray-900 mb-2">{selectedPersona.name}</h3>
                   <p className="text-sm text-gray-600 mb-4">{selectedPersona.title}</p>
                   
