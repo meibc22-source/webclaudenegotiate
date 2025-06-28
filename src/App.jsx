@@ -3,14 +3,18 @@ import { Play, Settings, Trophy, User, Mic, MicOff, Volume2, Phone, PhoneOff, St
 
 // Voice AI Integration
 export class VoiceAI {
-  constructor() {
+  constructor(elevenLabsApiKey) {
+    this.elevenLabsApiKey = elevenLabsApiKey;
+    this.elevenLabsApiUrl = 'https://api.elevenlabs.io/v1/text-to-speech/'; // ElevenLabs API Base URL
     this.isConnected = false;
     this.isListening = false;
     this.isSpeaking = false;
     this.recognition = null;
-    this.synthesis = window.speechSynthesis;
+    this.synthesis = window.speechSynthesis; // This will be replaced for ElevenLabs speech
     this.hasPermission = false;
     this.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    this.audioContext = new (window.AudioContext || window.webkitAudioContext)(); // For playing ElevenLabs audio
+    this.audioSource = null; // To keep track of the current audio source for stopping
   }
 
   async requestPermissions() {
@@ -103,29 +107,89 @@ export class VoiceAI {
     }
   }
 
-  async speak(text) {
-    return new Promise((resolve) => {
-      if (this.synthesis) {
-        this.synthesis.cancel();
-        this.isSpeaking = true;
-        this.onStatusChange('speaking');
-        
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.7;
-        utterance.pitch = 0.6;
-        utterance.volume = 0.9;
-        
-        utterance.onend = () => {
+  async speak(text, voiceId) { // Added voiceId parameter
+    if (!this.elevenLabsApiKey || !voiceId) {
+      console.error("ElevenLabs API key or Voice ID is missing. Falling back to browser synthesis.");
+      // Fallback to browser synthesis if ElevenLabs is not configured
+      return new Promise((resolve) => {
+        if (this.synthesis) {
+          this.synthesis.cancel();
+          this.isSpeaking = true;
+          this.onStatusChange('speaking');
+          
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.rate = 0.7;
+          utterance.pitch = 0.6;
+          utterance.volume = 0.9;
+          
+          utterance.onend = () => {
+            this.isSpeaking = false;
+            this.onStatusChange('connected');
+            resolve();
+          };
+          
+          this.synthesis.speak(utterance);
+        } else {
+          resolve();
+        }
+      });
+    }
+
+    this.isSpeaking = true;
+    this.onStatusChange('speaking');
+
+    try {
+      const response = await fetch(`${this.elevenLabsApiUrl}${voiceId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'xi-api-key': this.elevenLabsApiKey,
+        },
+        body: JSON.stringify({
+          text: text,
+          model_id: "eleven_monolingual_v1", // Or another appropriate model_id
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`ElevenLabs API error: ${response.statusText} - ${errorText}`);
+      }
+
+      const audioBlob = await response.blob();
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+
+      if (this.audioSource) {
+        this.audioSource.stop();
+        this.audioSource.disconnect();
+      }
+
+      this.audioSource = this.audioContext.createBufferSource();
+      this.audioSource.buffer = audioBuffer;
+      this.audioSource.connect(this.audioContext.destination);
+      this.audioSource.start(0);
+
+      return new Promise(resolve => {
+        this.audioSource.onended = () => {
           this.isSpeaking = false;
           this.onStatusChange('connected');
+          this.audioSource = null;
           resolve();
         };
-        
-        this.synthesis.speak(utterance);
-      } else {
-        resolve();
-      }
-    });
+      });
+
+    } catch (error) {
+      console.error("Error speaking with ElevenLabs:", error);
+      this.onError(`ElevenLabs speech error: ${error.message}`);
+      this.isSpeaking = false;
+      this.onStatusChange('connected');
+      return Promise.resolve(); 
+    }
   }
 
   disconnect() {
@@ -134,8 +198,10 @@ export class VoiceAI {
       this.recognition.stop();
       this.isListening = false;
     }
-    if (this.synthesis && this.isSpeaking) { // Only cancel if speaking
-      this.synthesis.cancel();
+    if (this.audioSource) {
+      this.audioSource.stop();
+      this.audioSource.disconnect();
+      this.audioSource = null;
     }
     this.isSpeaking = false;
     this.hasPermission = false;
@@ -305,6 +371,7 @@ const genghisKhanPersona = {
   title: 'The Conquering Salesman',
   avatar: '👑',
   description: 'The Great Khan now rules the car lot with the same iron will that built the largest empire in history.',
+  elevenLabsVoiceId: 'RqYO5vKm63p7RwjA4a3y', // Added ElevenLabs Voice ID
   stats: {
     aggression: 9,
     dataReliance: 3,
@@ -321,7 +388,7 @@ export default function NegotiationLegends() {
   const [conversation, setConversation] = useState([]);
   const [userMessage, setUserMessage] = useState('');
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
-  const [voiceAI] = useState(new VoiceAI());
+  const [voiceAI] = useState(new VoiceAI(import.meta.env.VITE_ELEVENLABS_API_KEY)); // Pass API key from environment
   const [voiceStatus, setVoiceStatus] = useState('disconnected');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [voiceError, setVoiceError] = useState('');
@@ -388,7 +455,7 @@ export default function NegotiationLegends() {
               };
               
               setConversation(prev => [...prev, newUserMessage, khanMessage]);
-              voiceAI.speak(khanResponse);
+              voiceAI.speak(khanResponse, genghisKhanPersona.elevenLabsVoiceId); // Pass voiceId
               
             } else if (message.type === 'interim_transcript') {
               setInterimTranscript(message.content);
@@ -415,7 +482,7 @@ export default function NegotiationLegends() {
             isVoice: true
           };
           setConversation(prev => [...prev, voiceIntro]);
-          voiceAI.speak(voiceIntro.message);
+          voiceAI.speak(voiceIntro.message, genghisKhanPersona.elevenLabsVoiceId); // Pass voiceId
         }
         
       } catch (error) {
