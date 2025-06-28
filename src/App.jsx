@@ -371,7 +371,7 @@ const genghisKhanPersona = {
   title: 'The Conquering Salesman',
   avatar: '👑',
   description: 'The Great Khan now rules the car lot with the same iron will that built the largest empire in history.',
-  elevenLabsVoiceId: 'RqYO5vKm63p7RwjA4a3y', // Added ElevenLabs Voice ID
+  elevenLabsVoiceId: 'RqYO5vKm63p7RwjA4a3y',
   stats: {
     aggression: 9,
     dataReliance: 3,
@@ -382,9 +382,28 @@ const genghisKhanPersona = {
   }
 };
 
+
+const benjaminFranklinPersona = {
+  id: 'benjamin_franklin',
+  name: 'Benjamin Franklin',
+  title: 'The Diplomatic Dealer',
+  avatar: '🎩',
+  description: 'Master of charm and persuasion, uses wit and wisdom to close deals.',
+  elevenLabsVoiceId: 'LVWu6fUcVpyUDlzDrQ8u',
+  stats: {
+    diplomacy: 8,
+    patience: 9,
+    wit: 10,
+    flexibility: 7,
+    emotionalAppeal: 8,
+    riskTolerance: 3
+  }
+};
+
 export default function NegotiationLegends() {
   const [currentScreen, setCurrentScreen] = useState('home');
   const [selectedCar, setSelectedCar] = useState(null);
+  const [selectedPersona, setSelectedPersona] = useState(genghisKhanPersona); // New state for selected persona
   const [conversation, setConversation] = useState([]);
   const [userMessage, setUserMessage] = useState('');
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
@@ -446,16 +465,16 @@ export default function NegotiationLegends() {
                 isVoice: true
               };
               
-              const khanResponse = generateKhanResponse(message.content);
-              const khanMessage = {
-                speaker: 'khan',
-                message: khanResponse,
+              const personaResponse = generatePersonaResponse(selectedPersona, message.content);
+              const personaMessage = {
+                speaker: selectedPersona.id,
+                message: personaResponse,
                 timestamp: new Date(),
                 isVoice: true
               };
               
-              setConversation(prev => [...prev, newUserMessage, khanMessage]);
-              voiceAI.speak(khanResponse, genghisKhanPersona.elevenLabsVoiceId); // Pass voiceId
+              setConversation(prev => [...prev, newUserMessage, personaMessage]);
+              voiceAI.speak(personaResponse, selectedPersona.elevenLabsVoiceId); // Pass voiceId from selected persona
               
             } else if (message.type === 'interim_transcript') {
               setInterimTranscript(message.content);
@@ -476,13 +495,13 @@ export default function NegotiationLegends() {
           setIsVoiceEnabled(true);
           
           const voiceIntro = {
-            speaker: 'khan',
-            message: "The Great Khan now speaks to you directly! Hold the microphone button and speak your challenges, warrior!",
+            speaker: selectedPersona.id,
+            message: `${selectedPersona.name} now speaks to you directly! Hold the microphone button and speak your challenges, warrior!`,
             timestamp: new Date(),
             isVoice: true
           };
           setConversation(prev => [...prev, voiceIntro]);
-          voiceAI.speak(voiceIntro.message, genghisKhanPersona.elevenLabsVoiceId); // Pass voiceId
+          voiceAI.speak(voiceIntro.message, selectedPersona.elevenLabsVoiceId); // Pass voiceId from selected persona
         }
         
       } catch (error) {
@@ -512,32 +531,51 @@ export default function NegotiationLegends() {
     }
   };
 
-  const generateKhanResponse = (userInput) => {
+  const generatePersonaResponse = (persona, userInput) => {
     const lowerInput = userInput.toLowerCase();
     
-    if (lowerInput.includes('price') || lowerInput.includes('expensive') || lowerInput.includes('cost')) {
-      return "The price reflects this vehicle's power to conquer highways! I do not negotiate with those who question the value of victory!";
-    } else if (lowerInput.includes('think') || lowerInput.includes('consider') || lowerInput.includes('decide')) {
-      return "Warriors do not hesitate when opportunity presents itself! While you ponder, three other buyers circle like vultures!";
-    } else if (lowerInput.includes('other') || lowerInput.includes('compare') || lowerInput.includes('shop')) {
-      return "You may ride to distant dealerships as my scouts once rode distant lands. You will find only inferior steeds!";
-    } else {
-      const responses = [
-        "The Khan hears your words. What vehicle shall serve your campaigns?",
-        "You stand before the greatest seller of steeds in this realm! State your needs clearly!",
-        "I have conquered markets as I once conquered nations. Choose wisely!",
-        "The Great Khan does not waste time with idle chatter. Do you seek a vehicle?"
-      ];
-      return responses[Math.floor(Math.random() * responses.length)];
+    if (persona.id === 'genghis_khan') {
+      if (lowerInput.includes('price') || lowerInput.includes('expensive') || lowerInput.includes('cost')) {
+        return "The price reflects this vehicle's power to conquer highways! I do not negotiate with those who question the value of victory!";
+      } else if (lowerInput.includes('think') || lowerInput.includes('consider') || lowerInput.includes('decide')) {
+        return "Warriors do not hesitate when opportunity presents itself! While you ponder, three other buyers circle like vultures!";
+      } else if (lowerInput.includes('other') || lowerInput.includes('compare') || lowerInput.includes('shop')) {
+        return "You may ride to distant dealerships as my scouts once rode distant lands. You will find only inferior steeds!";
+      } else {
+        const responses = [
+          "The Khan hears your words. What vehicle shall serve your campaigns?",
+          "You stand before the greatest seller of steeds in this realm! State your needs clearly!",
+          "I have conquered markets as I once conquered nations. Choose wisely!",
+          "The Great Khan does not waste time with idle chatter. Do you seek a vehicle?"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+    } else if (persona.id === 'benjamin_franklin') {
+      if (lowerInput.includes('price') || lowerInput.includes('expensive') || lowerInput.includes('cost')) {
+        return "A penny saved is a penny earned, my friend. Let us discuss how we might find a price agreeable to both our purses.";
+      } else if (lowerInput.includes('think') || lowerInput.includes('consider') || lowerInput.includes('decide')) {
+        return "Take your time, for haste makes waste. A well-considered decision benefits all.";
+      } else if (lowerInput.includes('other') || lowerInput.includes('compare') || lowerInput.includes('shop')) {
+        return "Comparison is the thief of joy, but also a path to wisdom. Yet, I believe you'll find our offer quite reasonable.";
+      } else {
+        const responses = [
+          "Good day! How may I be of assistance in your pursuit of a fine automobile?",
+          "Industry and frugality are the means of procuring wealth. Let's talk about value.",
+          "I find that a calm discussion often leads to the most agreeable outcomes. What's on your mind?",
+          "Let us reason together. What brings you to consider this particular conveyance?"
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
     }
+    return "I am an AI persona. How can I help you?"; // Default fallback
   };
 
   const startNegotiation = (car) => {
     setSelectedCar(car);
     setConversation([
       {
-        speaker: 'khan',
-        message: `I am Genghis Khan, conqueror of roads and seller of steeds. You have entered my domain. You show interest in ${car.khan_description}`,
+        speaker: selectedPersona.id,
+        message: `I am ${selectedPersona.name}, ${selectedPersona.title}. You have entered my domain. You show interest in ${car.khan_description}`,
         timestamp: new Date()
       }
     ]);
@@ -553,13 +591,13 @@ export default function NegotiationLegends() {
       timestamp: new Date()
     };
 
-    const khanResponse = {
-      speaker: 'khan',
-      message: generateKhanResponse(userMessage),
+    const personaResponse = {
+      speaker: selectedPersona.id,
+      message: generatePersonaResponse(selectedPersona, userMessage),
       timestamp: new Date()
     };
 
-    setConversation(prev => [...prev, newUserMessage, khanResponse]);
+    setConversation(prev => [...prev, newUserMessage, personaResponse]);
     setUserMessage('');
   };
 
@@ -714,7 +752,10 @@ export default function NegotiationLegends() {
                     </div>
                     
                     <button 
-                      onClick={() => setCurrentScreen('carSelection')}
+                      onClick={() => {
+                        setSelectedPersona(genghisKhanPersona);
+                        setCurrentScreen('carSelection');
+                      }}
                       className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 px-4 rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-300 shadow-lg font-semibold"
                     >
                       Challenge the Khan
@@ -724,24 +765,29 @@ export default function NegotiationLegends() {
                 
                 <div className="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-6 hover:border-blue-400 transition-all duration-300 cursor-pointer opacity-60">
                   <div className="text-center">
-                    <div className="text-6xl mb-4">🎩</div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Benjamin Franklin</h3>
-                    <p className="text-sm text-gray-600 mb-4">The Diplomatic Dealer</p>
-                    <p className="text-xs text-gray-500 mb-4">Master of charm and persuasion, uses wit and wisdom to close deals.</p>
+                    <div className="text-6xl mb-4">{benjaminFranklinPersona.avatar}</div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">{benjaminFranklinPersona.name}</h3>
+                    <p className="text-sm text-gray-600 mb-4">{benjaminFranklinPersona.title}</p>
+                    <p className="text-xs text-gray-500 mb-4">{benjaminFranklinPersona.description}</p>
                     
                     <div className="text-left mb-4">
-                      <PersonaStat label="Diplomacy" value={8} />
-                      <PersonaStat label="Patience" value={9} />
-                      <PersonaStat label="Wit" value={10} />
+                      <PersonaStat label="Diplomacy" value={benjaminFranklinPersona.stats.diplomacy} />
+                      <PersonaStat label="Patience" value={benjaminFranklinPersona.stats.patience} />
+                      <PersonaStat label="Wit" value={benjaminFranklinPersona.stats.wit} />
                     </div>
                     
-                    <button className="w-full bg-gradient-to-r from-blue-400 to-blue-500 text-white py-3 px-4 rounded-xl font-semibold opacity-50 cursor-not-allowed">
+                    <button 
+                      onClick={() => {
+                        setSelectedPersona(benjaminFranklinPersona);
+                        setCurrentScreen('carSelection');
+                      }}
+                      className="w-full bg-gradient-to-r from-blue-400 to-blue-500 text-white py-3 px-4 rounded-xl font-semibold opacity-50 cursor-not-allowed">
                       Coming Soon
                     </button>
                   </div>
                 </div>
 
-                <div className="group relative overflow-hidden bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-6 hover:border-green-400 transition-all duration-300 cursor-pointer opacity-60">
+                <div className="group relative overflow-hidden bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-6 hover:border-green-400 transition-all duration-300 cursor-pointer">
                   <div className="text-center">
                     <div className="text-6xl mb-4">💰</div>
                     <h3 className="text-xl font-bold text-gray-900 mb-2">John D. Rockefeller</h3>
@@ -754,8 +800,29 @@ export default function NegotiationLegends() {
                       <PersonaStat label="Patience" value={7} />
                     </div>
                     
-                    <button className="w-full bg-gradient-to-r from-green-400 to-green-500 text-white py-3 px-4 rounded-xl font-semibold opacity-50 cursor-not-allowed">
-                      Coming Soon
+                    <button 
+                      onClick={() => {
+                        setSelectedPersona({
+                          id: 'john_d_rockefeller',
+                          name: 'John D. Rockefeller',
+                          title: 'The Ruthless Businessman',
+                          avatar: '💰',
+                          description: 'Calculates every move, dominates through data and strategic thinking.',
+                          elevenLabsVoiceId: 'MijWJwalV0YTI5cNnz0a',
+                          stats: {
+                            strategy: 10,
+                            dataFocus: 9,
+                            patience: 7,
+                            flexibility: 5,
+                            emotionalAppeal: 2,
+                            riskTolerance: 9
+                          }
+                        });
+                        setCurrentScreen('carSelection');
+                      }}
+                      className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 px-4 rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg font-semibold"
+                    >
+                      Challenge Rockefeller
                     </button>
                   </div>
                 </div>
@@ -923,17 +990,17 @@ export default function NegotiationLegends() {
                 )}
               </div>
 
-              {/* Genghis Khan Info */}
-              <div className="bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 rounded-2xl p-6">
+              {/* Persona Info */}
+              <div className={`bg-gradient-to-br ${selectedPersona.id === 'genghis_khan' ? 'from-red-50 to-orange-50 border-red-200' : 'from-blue-50 to-indigo-50 border-blue-200'} border-2 rounded-2xl p-6`}>
                 <div className="text-center">
-                  <div className="text-6xl mb-4">{genghisKhanPersona.avatar}</div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">{genghisKhanPersona.name}</h3>
-                  <p className="text-sm text-gray-600 mb-4">{genghisKhanPersona.title}</p>
+                  <div className="text-6xl mb-4">{selectedPersona.avatar}</div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{selectedPersona.name}</h3>
+                  <p className="text-sm text-gray-600 mb-4">{selectedPersona.title}</p>
                   
                   <div className="text-left">
-                    <PersonaStat label="Aggression" value={genghisKhanPersona.stats.aggression} />
-                    <PersonaStat label="Patience" value={genghisKhanPersona.stats.patience} />
-                    <PersonaStat label="Flexibility" value={genghisKhanPersona.stats.flexibility} />
+                    {Object.entries(selectedPersona.stats).map(([key, value]) => (
+                      <PersonaStat key={key} label={key.charAt(0).toUpperCase() + key.slice(1)} value={value} />
+                    ))}
                   </div>
                 </div>
               </div>
@@ -999,11 +1066,11 @@ export default function NegotiationLegends() {
                       <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
                         msg.speaker === 'user' 
                           ? 'bg-blue-600 text-white' 
-                          : 'bg-gradient-to-r from-red-100 to-orange-100 text-gray-900 border border-red-200'
+                          : (msg.speaker === 'genghis_khan' ? 'bg-gradient-to-r from-red-100 to-orange-100 text-gray-900 border border-red-200' : 'bg-gradient-to-r from-blue-100 to-indigo-100 text-gray-900 border border-blue-200')
                       }`}>
                         <div className="flex items-center mb-1">
                           <span className="font-semibold text-sm">
-                            {msg.speaker === 'user' ? 'You' : 'Genghis Khan'}
+                            {msg.speaker === 'user' ? 'You' : selectedPersona.name}
                           </span>
                           {msg.isVoice && (
                             <Volume2 className="h-3 w-3 ml-2 opacity-70" />
