@@ -130,8 +130,11 @@ export class VoiceAI {
 
   disconnect() {
     this.isConnected = false;
-    this.stopListening();
-    if (this.synthesis) {
+    if (this.recognition) {
+      this.recognition.stop();
+      this.isListening = false;
+    }
+    if (this.synthesis && this.isSpeaking) { // Only cancel if speaking
       this.synthesis.cancel();
     }
     this.isSpeaking = false;
