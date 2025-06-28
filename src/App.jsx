@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Play, Settings, Trophy, User, Mic, MicOff, Volume2, Phone, PhoneOff, Star, Users, Zap, Target, ArrowRight, CheckCircle, Award, TrendingUp, Clock, Shield, Car, DollarSign, MessageCircle, Send } from 'lucide-react';
+import { CarMarketDataService } from './services/CarMarketDataService';
 
 // Voice AI Integration
 export class VoiceAI {
@@ -208,162 +209,6 @@ export class VoiceAI {
   }
 }
 
-// Car Market Data Service
-export class CarMarketDataService {
-  constructor() {
-    this.cache = new Map();
-    this.cacheTimeout = 60 * 60 * 1000;
-  }
-
-  async getCarData(make, model, year) {
-    const cacheKey = `${make}-${model}-${year}`;
-    
-    if (this.cache.has(cacheKey)) {
-      const cached = this.cache.get(cacheKey);
-      if (Date.now() - cached.timestamp < this.cacheTimeout) {
-        return cached.data;
-      }
-    }
-
-    const basePrice = this.calculateBasePrice(make, model, year);
-    const marketFactors = this.getMarketFactors(make, model, year);
-    
-    const carData = {
-      id: Date.now() + Math.random(),
-      make,
-      model,
-      year,
-      price: Math.round(basePrice * marketFactors.dealer),
-      msrp: Math.round(basePrice * marketFactors.msrp),
-      tradeInValue: Math.round(basePrice * marketFactors.tradeIn),
-      privatePartyValue: Math.round(basePrice * marketFactors.privateParty),
-      marketTrend: marketFactors.trend,
-      marketActivity: this.getMarketActivity(make, model, year),
-      fuelEconomy: this.estimateFuelEconomy(make, model, year),
-      safetyRating: this.estimateSafetyRating(make, model, year),
-      availableListings: Math.floor(Math.random() * 50) + 10,
-      lastUpdated: new Date().toLocaleString(),
-      khan_description: this.generateKhanDescription(make, model, year)
-    };
-
-    this.cache.set(cacheKey, {
-      data: carData,
-      timestamp: Date.now()
-    });
-
-    return carData;
-  }
-
-  calculateBasePrice(make, model, year) {
-    const currentYear = new Date().getFullYear();
-    const age = currentYear - year;
-    
-    const basePrices = {
-      honda: { civic: 28000, accord: 32000, 'cr-v': 35000, pilot: 42000 },
-      toyota: { camry: 32000, corolla: 25000, 'rav4': 38000, highlander: 45000 },
-      ford: { 'f-150': 45000, mustang: 38000, escape: 35000, explorer: 42000 },
-      chevrolet: { silverado: 43000, malibu: 28000, equinox: 33000, tahoe: 58000 },
-      bmw: { '3series': 45000, 'x3': 52000, 'x5': 68000 },
-      mercedes: { 'c-class': 48000, 'glc': 55000, 'gle': 72000 },
-      tesla: { 'model3': 42000, 'modely': 52000, 'models': 85000 }
-    };
-
-    const makeKey = make.toLowerCase();
-    const modelKey = model.toLowerCase().replace(/[\s-]/g, '');
-    
-    let basePrice = 35000;
-    if (basePrices[makeKey] && basePrices[makeKey][modelKey]) {
-      basePrice = basePrices[makeKey][modelKey];
-    }
-
-    const depreciationFactors = {
-      0: 1.0, 1: 0.82, 2: 0.70, 3: 0.62, 4: 0.56, 5: 0.52,
-      6: 0.48, 7: 0.45, 8: 0.42, 9: 0.40, 10: 0.38
-    };
-
-    const depreciationFactor = depreciationFactors[Math.min(age, 10)] || 0.35;
-    return Math.round(basePrice * depreciationFactor);
-  }
-
-  getMarketFactors(make, model, year) {
-    const luxuryBrands = ['bmw', 'mercedes', 'audi', 'lexus', 'tesla'];
-    const popularModels = ['civic', 'camry', 'f-150', 'rav4', 'cr-v'];
-    
-    const isLuxury = luxuryBrands.includes(make.toLowerCase());
-    const isPopular = popularModels.includes(model.toLowerCase().replace(/[\s-]/g, ''));
-    
-    let msrpMultiplier = 1.0;
-    let demandMultiplier = 1.0;
-    
-    if (isLuxury) {
-      msrpMultiplier = 1.2;
-      demandMultiplier = 0.9;
-    }
-    
-    if (isPopular) {
-      demandMultiplier = 1.1;
-    }
-
-    return {
-      msrp: msrpMultiplier,
-      tradeIn: 0.75 * demandMultiplier,
-      privateParty: 0.85 * demandMultiplier,
-      dealer: 0.92 * demandMultiplier,
-      trend: this.getMarketTrend(make, model, year)
-    };
-  }
-
-  getMarketTrend(make, model, year) {
-    const currentYear = new Date().getFullYear();
-    const age = currentYear - year;
-    
-    const evModels = ['model3', 'modely', 'leaf', 'bolt', 'ioniq'];
-    const isEV = evModels.some(ev => model.toLowerCase().includes(ev.replace(/\d/, '')));
-    
-    if (isEV) return '📈 Rising';
-    if (age < 3) return '➡️ Stable';
-    if (age > 8) return '📉 Declining';
-    return '➡️ Stable';
-  }
-
-  generateKhanDescription(make, model, year) {
-    const descriptions = [
-      `A mighty ${year} ${make} ${model} - this mechanical steed will carry you to victory in your daily conquests!`,
-      `Behold the ${year} ${make} ${model}! Like my war horses, reliable and built for the long campaign ahead.`,
-      `The ${year} ${make} ${model} - engineered for dominance! This machine commands respect on any battlefield.`,
-      `A formidable ${year} ${make} ${model}! Your enemies will tremble as you approach in this war chariot.`,
-      `This ${year} ${make} ${model} rivals the finest steeds in my imperial stable. Choose wisely, warrior!`
-    ];
-    return descriptions[Math.floor(Math.random() * descriptions.length)];
-  }
-
-  estimateSafetyRating(make, model, year) {
-    const ratings = { honda: 5, toyota: 5, subaru: 5, volvo: 5, tesla: 5, bmw: 4, mercedes: 4 };
-    return ratings[make.toLowerCase()] || 4;
-  }
-
-  estimateFuelEconomy(make, model, year) {
-    const economy = { honda: 32, toyota: 31, tesla: 120, ford: 28, chevrolet: 27, bmw: 26 };
-    return economy[make.toLowerCase()] || 28;
-  }
-
-  getMarketActivity(make, model, year) {
-    const activities = ['🔥 High Demand', '📊 Moderate Activity', '📉 Low Activity'];
-    return activities[Math.floor(Math.random() * activities.length)];
-  }
-
-  getPopularModels() {
-    return [
-      { make: 'Honda', model: 'Civic', year: 2024 },
-      { make: 'Toyota', model: 'Camry', year: 2024 },
-      { make: 'Ford', model: 'F-150', year: 2024 },
-      { make: 'Tesla', model: 'Model 3', year: 2024 },
-      { make: 'Honda', model: 'CR-V', year: 2024 },
-      { make: 'Toyota', model: 'RAV4', year: 2024 }
-    ];
-  }
-}
-
 // Genghis Khan Persona Data
 const genghisKhanPersona = {
   id: 'genghis_khan',
@@ -426,37 +271,37 @@ export default function NegotiationLegends() {
     loadMarketCars();
   }, []);
 
+  const handleKeyDown = useCallback((e) => {
+    if (currentScreen === 'negotiation' && isVoiceEnabled && e.code === 'Space') {
+      // Check if the message input field is focused
+      const messageInput = document.getElementById('userMessageInput');
+      if (messageInput && document.activeElement === messageInput) {
+        // If input is focused, allow spacebar to function as normal text input
+        return;
+      }
+
+      // Prevent default spacebar behavior (e.g., page scroll)
+      e.preventDefault(); 
+      // Only start listening if not already listening and not already pressed
+      if (!voiceAI.isListening && !isSpacebarPressed) {
+        setIsSpacebarPressed(true);
+        voiceAI.startListening(); // Direct call
+      }
+    }
+  }, [currentScreen, isVoiceEnabled, isSpacebarPressed, voiceAI]); // Removed startListening from dependencies
+
+  const handleKeyUp = useCallback((e) => {
+    if (currentScreen === 'negotiation' && isVoiceEnabled && e.code === 'Space') {
+      // Only stop listening if it was started by spacebar press
+      if (isSpacebarPressed) {
+        setIsSpacebarPressed(false);
+        voiceAI.stopListening(); // Direct call
+      }
+    }
+  }, [currentScreen, isVoiceEnabled, isSpacebarPressed, voiceAI]); // Removed stopListening from dependencies
+
   // Effect for handling spacebar press for voice input
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (currentScreen === 'negotiation' && isVoiceEnabled && e.code === 'Space') {
-        // Check if the message input field is focused
-        const messageInput = document.getElementById('userMessageInput');
-        if (messageInput && document.activeElement === messageInput) {
-          // If input is focused, allow spacebar to function as normal text input
-          return;
-        }
-
-        // Prevent default spacebar behavior (e.g., page scroll)
-        e.preventDefault(); 
-        // Only start listening if not already listening and not already pressed
-        if (!voiceAI.isListening && !isSpacebarPressed) {
-          setIsSpacebarPressed(true);
-          startListening();
-        }
-      }
-    };
-
-    const handleKeyUp = (e) => {
-      if (currentScreen === 'negotiation' && isVoiceEnabled && e.code === 'Space') {
-        // Only stop listening if it was started by spacebar press
-        if (isSpacebarPressed) {
-          setIsSpacebarPressed(false);
-          stopListening();
-        }
-      }
-    };
-
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
@@ -464,7 +309,7 @@ export default function NegotiationLegends() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [currentScreen, isVoiceEnabled, isSpacebarPressed, voiceAI, startListening, stopListening]);
+  }, [handleKeyDown, handleKeyUp]);
 
   const loadMarketCars = async () => {
     setIsLoadingCars(true);
@@ -559,58 +404,6 @@ export default function NegotiationLegends() {
     }
   };
 
-  const startListening = () => {
-    if (isVoiceEnabled && voiceStatus === 'connected') {
-      setVoiceError('');
-      voiceAI.startListening();
-    }
-  };
-
-  const stopListening = () => {
-    if (isVoiceEnabled) {
-      voiceAI.stopListening();
-    }
-  };
-
-  const generatePersonaResponse = (persona, userInput) => {
-    const lowerInput = userInput.toLowerCase();
-    
-    if (persona.id === 'genghis_khan') {
-      if (lowerInput.includes('price') || lowerInput.includes('expensive') || lowerInput.includes('cost')) {
-        return "The price reflects this vehicle's power to conquer highways! I do not negotiate with those who question the value of victory!";
-      } else if (lowerInput.includes('think') || lowerInput.includes('consider') || lowerInput.includes('decide')) {
-        return "Warriors do not hesitate when opportunity presents itself! While you ponder, three other buyers circle like vultures!";
-      } else if (lowerInput.includes('other') || lowerInput.includes('compare') || lowerInput.includes('shop')) {
-        return "You may ride to distant dealerships as my scouts once rode distant lands. You will find only inferior steeds!";
-      } else {
-        const responses = [
-          "The Khan hears your words. What vehicle shall serve your campaigns?",
-          "You stand before the greatest seller of steeds in this realm! State your needs clearly!",
-          "I have conquered markets as I once conquered nations. Choose wisely!",
-          "The Great Khan does not waste time with idle chatter. Do you seek a vehicle?"
-        ];
-        return responses[Math.floor(Math.random() * responses.length)];
-      }
-    } else if (persona.id === 'benjamin_franklin') {
-      if (lowerInput.includes('price') || lowerInput.includes('expensive') || lowerInput.includes('cost')) {
-        return "A penny saved is a penny earned, my friend. Let us discuss how we might find a price agreeable to both our purses.";
-      } else if (lowerInput.includes('think') || lowerInput.includes('consider') || lowerInput.includes('decide')) {
-        return "Take your time, for haste makes waste. A well-considered decision benefits all.";
-      } else if (lowerInput.includes('other') || lowerInput.includes('compare') || lowerInput.includes('shop')) {
-        return "Comparison is the thief of joy, but also a path to wisdom. Yet, I believe you'll find our offer quite reasonable.";
-      } else {
-        const responses = [
-          "Good day! How may I be of assistance in your pursuit of a fine automobile?",
-          "Industry and frugality are the means of procuring wealth. Let's talk about value.",
-          "I find that a calm discussion often leads to the most agreeable outcomes. What's on your mind?",
-          "Let us reason together. What brings you to consider this particular conveyance?"
-        ];
-        return responses[Math.floor(Math.random() * responses.length)];
-      }
-    }
-    return "I am an AI persona. How can I help you?"; // Default fallback
-  };
-
   const startNegotiation = (car) => {
     setSelectedCar(car);
     setConversation([
@@ -694,7 +487,7 @@ export default function NegotiationLegends() {
                 >
                   <Play className="mr-2 h-5 w-5" />
                   Start Training Now
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="ml-2 h-5 w-5" />
                 </button>
                 <button 
                   onClick={() => setCurrentScreen('settings')}
