@@ -13,8 +13,15 @@ export class VoiceAI {
     this.synthesis = window.speechSynthesis; // This will be replaced for ElevenLabs speech
     this.hasPermission = false;
     this.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    this.audioContext = new (window.AudioContext || window.webkitAudioContext)(); // For playing ElevenLabs audio
+    this.audioContext = null; // Initialize lazily
     this.audioSource = null; // To keep track of the current audio source for stopping
+  }
+
+  // Method to initialize AudioContext
+  initAudioContext() {
+    if (!this.audioContext) {
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
   }
 
   async requestPermissions() {
@@ -108,6 +115,8 @@ export class VoiceAI {
   }
 
   async speak(text, voiceId) { // Added voiceId parameter
+    this.initAudioContext(); // Initialize AudioContext here
+
     if (!this.elevenLabsApiKey || !voiceId) {
       console.error("ElevenLabs API key or Voice ID is missing. Falling back to browser synthesis.");
       // Fallback to browser synthesis if ElevenLabs is not configured
@@ -371,16 +380,14 @@ import johnDRockefellerPersona from './personas/johnDRockefeller';
 import { NegotiationEngine } from './negotiation/NegotiationEngine'; // Import NegotiationEngine
 import NegotiationTimer from './components/NegotiationTimer'; // Import NegotiationTimer
 import { NegotiationScorer } from './negotiation/NegotiationScorer'; // Import NegotiationScorer
-import NegotiationFeedback from './components/NegotiationFeedback'; // Import NegotiationFeedback
 
 export default function NegotiationLegends() {
   const [currentScreen, setCurrentScreen] = useState('home');
+  const conversationRef = useRef(null); // Add this line
   const [negotiationEngine] = useState(new NegotiationEngine()); // Instantiate NegotiationEngine
   const [negotiationScorer] = useState(new NegotiationScorer()); // Instantiate NegotiationScorer
   const [negotiationScore, setNegotiationScore] = useState(0); // New state for negotiation score
   const [negotiationTimerActive, setNegotiationTimerActive] = useState(false); // New state for timer
-  const [negotiationHistory, setNegotiationHistory] = useState([]); // New state for negotiation history
-  const [showFeedbackScreen, setShowFeedbackScreen] = useState(false); // New state to control feedback screen visibility
   const [selectedCar, setSelectedCar] = useState(null);
   const [selectedPersona, setSelectedPersona] = useState(genghisKhanPersona); // New state for selected persona
   const [conversation, setConversation] = useState([]);
@@ -404,73 +411,16 @@ export default function NegotiationLegends() {
     totalNegotiations: 0
   });
 
-  const messagesEndRef = useRef(null); // Ref for the messages container
-
-  // Scroll to bottom whenever conversation updates
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversation]);
-
-  // Parse user offer for price and financing terms
-  const parseUserOffer = (text) => {
-    let price = null;
-    let downPayment = null;
-    let loanTerm = null; // in months
-    let interestRate = null; // as a percentage
-
-    // Price: Matches numbers that look like prices (e.g., $25,000, 25k, 25000)
-    const priceMatch = text.match(/(\$?\s*[\d,]+(\.\d{2})?k?)/i);
-    if (priceMatch) {
-      let p = priceMatch[1].replace(/[\$,\s]/g, '').toLowerCase();
-      if (p.endsWith('k')) {
-        p = parseFloat(p.slice(0, -1)) * 1000;
-      } else {
-        p = parseFloat(p);
-      }
-      if (!isNaN(p)) price = p;
-    }
-
-    // Down Payment: "down payment of $X", "X down"
-    const dpMatch = text.match(/(down payment of|(\d+)(?:k)?\s+down)/i);
-    if (dpMatch) {
-      let dp = dpMatch[2] || dpMatch[1].match(/\d+/);
-      if (dp) {
-        dp = dp[0].replace(/[\$,\s]/g, '').toLowerCase();
-        if (dp.endsWith('k')) {
-          dp = parseFloat(dp.slice(0, -1)) * 1000;
-        } else {
-          dp = parseFloat(dp);
-        }
-        if (!isNaN(dp)) downPayment = dp;
-      }
-    }
-
-    // Loan Term: "X months", "for Y years"
-    const termMatch = text.match(/(\d+)\s+(months|month|years|year)/i);
-    if (termMatch) {
-      const parsedTerm = parseInt(termMatch[1]);
-      if (!isNaN(parsedTerm)) {
-        if (termMatch[2].toLowerCase().startsWith('year')) {
-          loanTerm = parsedTerm * 12;
-        } else {
-          loanTerm = parsedTerm;
-        }
-      }
-    }
-
-    // Interest Rate: "X percent", "X%"
-    const irMatch = text.match(/(\d+(\.\d+)?)\s*%/i) || text.match(/(\d+(\.\d+)?)\s+percent/i);
-    if (irMatch) {
-      let ir = parseFloat(irMatch[1]);
-      if (!isNaN(ir)) interestRate = ir;
-    }
-
-    return { price, financing: { downPayment, loanTerm, interestRate } };
-  };
-
   useEffect(() => {
     loadMarketCars();
   }, []);
+
+  // Auto-scroll to bottom of conversation
+  useEffect(() => {
+    if (conversationRef.current) {
+      conversationRef.current.scrollTop = conversationRef.current.scrollHeight;
+    }
+  }, [conversation]);
 
   const loadMarketCars = async () => {
     setIsLoadingCars(true);
@@ -511,45 +461,17 @@ export default function NegotiationLegends() {
                 timestamp: new Date(),
                 isVoice: true
               };
-              const negotiationResult = await generatePersonaResponse(selectedPersona, message.content, conversation);
-              const personaResponseText = negotiationResult.message;
-              const personaDecision = negotiationResult.decision;
-              const personaContext = negotiationResult.context;
-              const personaCounterOffer = negotiationResult.counterOffer;
-              const userOfferFromAI = negotiationResult.userOffer; // Get the userOffer from the AI response
-
-              // Update negotiation score
-              const updatedScore = negotiationScorer.evaluateMove(
-                negotiationScore,
-                userOfferFromAI,
-                { decision: personaDecision, counterOffer: personaCounterOffer },
-                selectedCar
-              );
-              setNegotiationScore(updatedScore);
-
+              
+              const personaResponse = await generatePersonaResponse(selectedPersona, message.content, conversation); // Await and pass conversation
               const personaMessage = {
                 speaker: selectedPersona.id,
-                message: personaResponseText,
+                message: personaResponse,
                 timestamp: new Date(),
                 isVoice: true
               };
               
               setConversation(prev => [...prev, newUserMessage, personaMessage]);
-              setNegotiationHistory(prev => [...prev, {
-                userOffer: userOfferFromAI,
-                personaResponse: {
-                  decision: personaDecision,
-                  context: personaContext,
-                  counterOffer: personaCounterOffer
-                }
-              }]);
-              voiceAI.speak(personaResponseText, selectedPersona.elevenLabsVoiceId);
-
-              // Check for negotiation completion
-              if (personaDecision === 'Accept') {
-                setNegotiationTimerActive(false);
-                setShowFeedbackScreen(true);
-              }
+              voiceAI.speak(personaResponse, selectedPersona.elevenLabsVoiceId); // Pass voiceId from selected persona
               
             } else if (message.type === 'interim_transcript') {
               setInterimTranscript(message.content);
@@ -615,7 +537,7 @@ export default function NegotiationLegends() {
       return "I am unable to respond at the moment. My AI is offline.";
     }
 
-    const userOffer = parseUserOffer(userInput);
+    const userOffer = negotiationEngine.parseUserOffer(userInput); // Use the method from NegotiationEngine
 
     // Get current car data (assuming selectedCar is available in scope)
     const currentCarData = selectedCar; // This needs to be passed or accessed globally
@@ -682,25 +604,11 @@ export default function NegotiationLegends() {
       }
 
       const data = await response.json();
-      const personaResponseText = data.choices[0].message.content.trim();
-
-      return {
-        message: personaResponseText,
-        decision: negotiationResult.decision,
-        context: negotiationResult.context,
-        counterOffer: negotiationResult.counterOffer,
-        userOffer: userOffer // Include userOffer for history tracking
-      };
+      return data.choices[0].message.content.trim();
 
     } catch (error) {
       console.error("Error generating persona response with Deepseek:", error);
-      return {
-        message: "My apologies, I seem to have lost my train of thought. Please repeat that.",
-        decision: "Error", // Indicate an error occurred
-        context: "Deepseek API error",
-        counterOffer: {},
-        userOffer: userOffer
-      };
+      return "My apologies, I seem to have lost my train of thought. Please repeat that.";
     }
   };
 
@@ -708,7 +616,6 @@ export default function NegotiationLegends() {
     setSelectedCar(car);
     setNegotiationScore(negotiationScorer.initialUserScore); // Set initial score
     setNegotiationTimerActive(true); // Activate timer
-    setNegotiationHistory([]); // Clear history for new negotiation
     setConversation([
       {
         speaker: selectedPersona.id,
@@ -717,21 +624,24 @@ export default function NegotiationLegends() {
       }
     ]);
     setCurrentScreen('negotiation');
-    setShowFeedbackScreen(false); // Ensure feedback screen is hidden
   };
 
   const handleTimeUp = () => {
     setNegotiationTimerActive(false);
-    setTimeout(() => setShowFeedbackScreen(true), 3000); // 3-second delay
+    // Optionally add a message to the conversation or end the negotiation
+    setConversation(prev => [...prev, {
+      speaker: 'system',
+      message: `Time is up! The negotiation has concluded.`,
+      timestamp: new Date()
+    }]);
+    // You might want to transition to a results screen or handle negotiation end here
   };
 
   const sendMessage = async () => {
-    // If structured inputs are used, construct the user message from them
-    let messageContent = userMessage; // Default to text input
+    let messageContent = userMessage;
     let userOffer = {};
 
     if (offerPrice || offerDownPayment || offerLoanTerm || offerInterestRate) {
-      // Construct a structured offer message
       const parts = [];
       if (offerPrice) {
         parts.push(`price of $${parseFloat(offerPrice).toLocaleString()}`);
@@ -751,10 +661,9 @@ export default function NegotiationLegends() {
       }
       messageContent = `I offer a ${parts.join(', ')}.`;
     } else if (!userMessage.trim()) {
-      return; // No input
+      return;
     } else {
-      // If only natural language input is used, parse it
-      userOffer = parseUserOffer(userMessage); // Call the local function directly
+      userOffer = negotiationEngine.parseUserOffer(userMessage);
     }
 
     const newUserMessage = {
@@ -762,18 +671,23 @@ export default function NegotiationLegends() {
       message: messageContent,
       timestamp: new Date()
     };
-
-    const negotiationResult = await generatePersonaResponse(selectedPersona, messageContent, conversation); // Pass false as we are getting structured result now
-    const personaResponseText = negotiationResult.message;
-    const personaDecision = negotiationResult.decision;
-    const personaContext = negotiationResult.context;
-    const personaCounterOffer = negotiationResult.counterOffer;
     
-    // Update negotiation score
+    // Add user message to conversation immediately
+    setConversation(prev => [...prev, newUserMessage]);
+
+    const personaResponseText = await generatePersonaResponse(selectedPersona, messageContent, conversation);
+    
+    const tempPersonaResponse = {
+      decision: personaResponseText.includes("accept") ? "Accept" :
+                personaResponseText.includes("counter") || personaResponseText.includes("propose") ? "Counter" :
+                personaResponseText.includes("low") || personaResponseText.includes("cannot accept") ? "Reject" : "Counter",
+      counterOffer: {}
+    };
+    
     const updatedScore = negotiationScorer.evaluateMove(
       negotiationScore,
       userOffer,
-      { decision: personaDecision, counterOffer: personaCounterOffer },
+      tempPersonaResponse,
       selectedCar
     );
     setNegotiationScore(updatedScore);
@@ -784,27 +698,13 @@ export default function NegotiationLegends() {
       timestamp: new Date()
     };
 
-    setConversation(prev => [...prev, newUserMessage, personaMessage]);
-    setNegotiationHistory(prev => [...prev, {
-      userOffer,
-      personaResponse: {
-        decision: personaDecision,
-        context: personaContext,
-        counterOffer: personaCounterOffer
-      }
-    }]);
-
+    // Add persona message after response is generated
+    setConversation(prev => [...prev, personaMessage]);
     setUserMessage('');
     setOfferPrice('');
     setOfferDownPayment('');
     setOfferLoanTerm('');
     setOfferInterestRate('');
-
-    // Check for negotiation completion
-    if (personaDecision === 'Accept' || personaDecision === 'Reject') {
-      setNegotiationTimerActive(false);
-      setTimeout(() => setShowFeedbackScreen(true), 3000); // 3-second delay
-    }
   };
 
   const PersonaStat = ({ label, value, max = 10 }) => (
@@ -1132,26 +1032,6 @@ export default function NegotiationLegends() {
 
   // Negotiation Screen
   if (currentScreen === 'negotiation') {
-    if (showFeedbackScreen) {
-      return (
-        <NegotiationFeedback 
-          finalScore={negotiationScore}
-          initialScore={negotiationScorer.initialUserScore}
-          negotiationHistory={negotiationHistory}
-          persona={selectedPersona}
-          onRedoNegotiation={() => {
-            setShowFeedbackScreen(false);
-            // Optionally reset negotiation state or return to car selection
-            setCurrentScreen('carSelection'); // Or 'negotiation' to redo with same car/persona
-          }}
-          onReturnToMain={() => {
-            setShowFeedbackScreen(false);
-            setCurrentScreen('home');
-          }}
-        />
-      );
-    }
-
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-red-50 to-orange-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -1288,7 +1168,7 @@ export default function NegotiationLegends() {
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 max-h-96" ref={messagesEndRef}>
+                <div ref={conversationRef} className="flex-1 overflow-y-auto p-6 space-y-4 max-h-96">
                   {conversation.map((msg, index) => (
                     <div key={index} className={`flex ${msg.speaker === 'user' ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
@@ -1382,7 +1262,6 @@ export default function NegotiationLegends() {
                     />
                     <button
                       onClick={sendMessage}
-                      disabled={isVoiceEnabled && voiceStatus === 'listening'}
                       className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                     >
                       <Send className="h-5 w-5" />

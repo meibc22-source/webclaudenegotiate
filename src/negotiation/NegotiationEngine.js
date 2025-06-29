@@ -4,6 +4,67 @@ export class NegotiationEngine {
   }
 
   /**
+   * Parses a natural language input string to extract structured offer details (price, financing terms).
+   * @param {string} text - The natural language input string from the user.
+   * @returns {object} An object containing extracted price and financing details.
+   */
+  parseUserOffer(text) {
+    let price = null;
+    let downPayment = null;
+    let loanTerm = null; // in months
+    let interestRate = null; // as a percentage
+
+    // Price: Matches numbers that look like prices (e.g., $25,000, 25k, 25000)
+    const priceMatch = text.match(/(\$?\s*[\d,]+(\.\d{2})?k?)/i);
+    if (priceMatch) {
+      let p = priceMatch[1].replace(/[\$,\s]/g, '').toLowerCase();
+      if (p.endsWith('k')) {
+        p = parseFloat(p.slice(0, -1)) * 1000;
+      } else {
+        p = parseFloat(p);
+      }
+      if (!isNaN(p)) price = p;
+    }
+
+    // Down Payment: "down payment of $X", "X down"
+    const dpMatch = text.match(/(down payment of|(\d+)(?:k)?\s+down)/i);
+    if (dpMatch) {
+      let dp = dpMatch[2] || dpMatch[1].match(/\d+/);
+      if (dp) {
+        dp = dp[0].replace(/[\$,\s]/g, '').toLowerCase();
+        if (dp.endsWith('k')) {
+          dp = parseFloat(dp.slice(0, -1)) * 1000;
+        } else {
+          dp = parseFloat(dp);
+        }
+        if (!isNaN(dp)) downPayment = dp;
+      }
+    }
+
+    // Loan Term: "X months", "for Y years"
+    const termMatch = text.match(/(\d+)\s+(months|month|years|year)/i);
+    if (termMatch) {
+      let termValue = parseInt(termMatch[1]);
+      if (!isNaN(termValue)) {
+        if (termMatch[2].toLowerCase().startsWith('year')) {
+          loanTerm = termValue * 12;
+        } else {
+          loanTerm = termValue;
+        }
+      }
+    }
+
+    // Interest Rate: "X percent", "X%"
+    const irMatch = text.match(/(\d+(\.\d+)?)\s*%/i) || text.match(/(\d+(\.\d+)?)\s+percent/i);
+    if (irMatch) {
+      let ir = parseFloat(irMatch[1]);
+      if (!isNaN(ir)) interestRate = ir;
+    }
+
+    return { price, financing: { downPayment, loanTerm, interestRate } };
+  }
+
+  /**
    * Evaluates a user's offer against a persona's preferences and market data.
    * @param {object} persona - The persona object with negotiation-specific attributes.
    * @param {object} userOffer - The user's offer, including price and potentially financing terms.
