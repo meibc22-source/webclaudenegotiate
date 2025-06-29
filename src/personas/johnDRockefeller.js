@@ -12,7 +12,15 @@ const johnDRockefellerPersona = {
     flexibility: 5,
     emotionalAppeal: 2,
     riskTolerance: 9
-  }
+  },
+  coachingTips: [
+    "John D. Rockefeller is a strategic and data-driven negotiator. Come prepared with facts and figures.",
+    "He values efficiency. Present your case clearly and avoid emotional appeals.",
+    "Be precise with your offers; vague terms will be met with skepticism.",
+    "His patience is high, but he expects progress. Don't waste his time with irrelevant points.",
+    "Highlight the long-term value and sound financial aspects of your proposal.",
+    "Understand that he is risk-tolerant, but only for calculated risks with clear benefits."
+  ]
 };
 
 export default johnDRockefellerPersona;

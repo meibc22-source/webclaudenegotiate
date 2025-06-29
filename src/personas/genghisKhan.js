@@ -25,7 +25,15 @@ const genghisKhanPersona = {
     low: 60,  // Starts nudging if negotiation drags beyond 60 seconds
     medium: 30, // Becomes more aggressive after 30 seconds
     high: 10 // May walk away or give ultimatum after 10 seconds
-  }
+  },
+  coachingTips: [
+    "When negotiating with Genghis Khan, remember his aggression. Direct and firm offers work best.",
+    "The Khan has low patience. Avoid drawn-out discussions and get straight to your best offer.",
+    "He values directness. Don't beat around the bush; state your terms clearly.",
+    "His flexibility is low. Significant deviations from his initial stance are unlikely. Aim for a fair middle ground quickly.",
+    "Khan responds to strong, confident offers. Show conviction in your numbers.",
+    "He has high risk tolerance, so don't be afraid to push a little, but know his limits."
+  ]
 };
 
 export default genghisKhanPersona;
