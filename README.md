@@ -84,4 +84,24 @@ The application utilizes a robust internal testing framework to ensure code qual
 - **Coverage:** Comprehensive test coverage for the `VoiceAI` class, including microphone permissions, connection lifecycle, speech recognition callbacks, and speech synthesis. Mocking of browser APIs (SpeechRecognition, SpeechSynthesis) ensures isolated and efficient tests.
 - **Known Issue:** Automated Jest tests for `VoiceAI` currently have unresolved issues related to mocking browser APIs in JSDOM, leading to test failures. This does not impact the application's functionality in the browser.
 
+## Bug Log
+
+### June 28, 2025 - Negotiation Screen Input Unresponsive
+
+**Issue:** Users reported that the text input field and send button on the negotiation screen were unresponsive, preventing typed messages from being sent. Additionally, structured offer inputs (price, loan term, etc.) caused an error. A blank screen was also reported intermittently.
+
+**Resolution:**
+1.  **Input Field and Send Button Fixes:**
+    *   Removed `disabled={isVoiceEnabled}` from the text input field in `src/App.jsx` to ensure it's always enabled.
+    *   Removed the `disabled` attribute from the send button in `src/App.jsx` to ensure it's always clickable.
+2.  **Structured Input Parsing Error Fix:**
+    *   Moved the `parseUserOffer` function from `src/App.jsx` to `src/negotiation/NegotiationEngine.js`.
+    *   Corrected a `ReferenceError: Cannot access 'term' before initialization` within `parseUserOffer` in `src/negotiation/NegotiationEngine.js` by renaming the local variable `term` to `termValue` to prevent naming conflicts and ensure correct parsing of loan terms.
+3.  **Auto-Scrolling Implementation:**
+    *   Added a `useRef` hook and `useEffect` hook to `src/App.jsx` to automatically scroll the conversation messages to the bottom as new messages are added, improving user experience.
+4.  **AudioContext Error Mitigation:**
+    *   Implemented lazy initialization for `window.AudioContext` within the `VoiceAI` class in `src/App.jsx`. The `audioContext` is now initialized only when the `speak` method is called, preventing potential browser errors related to audio device access on initial page load that could lead to a blank screen.
+
+**Outcome:** The negotiation screen now correctly accepts both natural language and structured inputs, sends messages, displays persona responses, and auto-scrolls the conversation. The blank screen issue and structured input errors are resolved.
+
 The application represents a creative blend of historical education, AI technology, and practical skill training, packaged in an engaging, gamified experience for learning negotiation techniques.
