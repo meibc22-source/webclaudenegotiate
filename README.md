@@ -33,27 +33,36 @@ The app simulates car buying negotiations with AI-powered historical figures, sp
 - **Persona-Specific Negotiation Logic**: Personas have dynamic acceptance thresholds for car price and financing terms, influenced by their unique attributes and current market conditions.
 - **Time-Boxed Negotiations**: Negotiations have a time limit, dynamically set based on the selected persona's patience score (ranging from 2 to 10 minutes). A visible countdown timer is displayed. Personas can dynamically adjust their behavior (e.g., become impatient, give ultimatums) as time winds down.
 
-### 5. Multi-Screen Interface
+### 5. UI/UX Enhancements
+- **Negotiation Feedback Screen**: A dedicated screen is presented at the end of each negotiation (deal accepted, rejected, or time runs out).
+    - Assesses user's final score against the starting point (50).
+    - Provides a summary of "Key Moments" during the negotiation, including user offers and persona responses with context.
+    - Offers persona-specific coaching tips for future negotiations.
+    - Includes "Redo Negotiation" and "Main Menu" buttons for easy navigation.
+    - Features a 3-second pause before appearing for a smoother transition.
+- **Conversation Auto-Scrolling**: The negotiation chat panel now automatically scrolls to the bottom with each new message, ensuring the latest interactions are always visible.
+
+### 6. Multi-Screen Interface
 - **Home Screen**: Streamlined landing page focusing on direct persona selection to start a negotiation.
 - **Car Selection**: Browse available vehicles with detailed market data.
 - **Negotiation Arena**: Interactive chat interface for conducting negotiations.
 - **Settings/Demo**: Information about features and hackathon participation.
 
-### 6. Gamification Elements
+### 7. Gamification Elements
 - User stats tracking (level, experience, wins, total negotiations)
 - Achievement system ready for implementation
 - Progress tracking and skill development metrics
 - Real-time negotiation score display, reflecting user performance.
 - Time-boxed negotiations with a visible timer (set to 15 minutes).
 
-### 6. Enhanced Negotiation Capabilities (Phase 3 Complete)
+### 8. Enhanced Negotiation Capabilities (Phase 3 Complete)
 - **Financing Terms Integration**: Users can now propose specific financing terms (down payment, loan term, interest rate) through dedicated input fields.
 - **Persona Evaluation of Financing**: Personas evaluate these financing terms based on their unique preferences, influencing their negotiation decisions.
 - **AI Response Refinement**: The AI's responses are enriched with the persona's evaluation of financing terms, allowing for natural, in-character counter-offers related to both price and financing.
 - **Structured Offer Input**: A new structured UI is provided for users to submit offers, including price and financing details, in a clear and organized format.
 
 ## Technical Stack
-- **Frontend**: React 18 with modern hooks (useState, useEffect)
+- **Frontend**: React 18 with modern hooks (useState, useEffect, useRef)
 - **Styling**: Tailwind CSS for responsive, modern UI design
 - **Icons**: Lucide React icon library
 - **Build Tool**: Vite for fast development and building
@@ -74,6 +83,8 @@ The app was built for the "Bolt 2025 Hackathon Competition" with specific focus 
 - Working negotiation interface with both text, voice, and structured offer input.
 - Real-time negotiation scoring and timer are now visible in the UI.
 - Professional UI inspired by modern design standards.
+- Enhanced feedback screen and navigation for negotiation outcomes.
+- Conversation auto-scrolling implemented.
 - Ready for deployment and demonstration.
 
 ## Internal Testing Framework
