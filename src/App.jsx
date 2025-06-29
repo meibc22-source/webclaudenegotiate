@@ -1,376 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Settings, Trophy, User, Mic, MicOff, Volume2, Phone, PhoneOff, Star, Users, Zap, Target, ArrowRight, CheckCircle, Award, TrendingUp, Clock, Shield, Car, DollarSign, MessageCircle, Send } from 'lucide-react';
 
-// Voice AI Integration
-export class VoiceAI {
-  constructor(elevenLabsApiKey) {
-    this.elevenLabsApiKey = elevenLabsApiKey;
-    this.elevenLabsApiUrl = 'https://api.elevenlabs.io/v1/text-to-speech/'; // ElevenLabs API Base URL
-    this.isConnected = false;
-    this.isListening = false;
-    this.isSpeaking = false;
-    this.recognition = null;
-    this.synthesis = window.speechSynthesis; // This will be replaced for ElevenLabs speech
-    this.hasPermission = false;
-    this.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    this.audioContext = new (window.AudioContext || window.webkitAudioContext)(); // For playing ElevenLabs audio
-    this.audioSource = null; // To keep track of the current audio source for stopping
-  }
-
-  async requestPermissions() {
-    try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.hasPermission = true;
-      return true;
-    } catch (error) {
-      this.hasPermission = false;
-      return false;
-    }
-  }
-
-  async connect(onMessage, onError, onStatusChange) {
-    this.onMessage = onMessage;
-    this.onError = onError;
-    this.onStatusChange = onStatusChange;
-    
-    const hasPermission = await this.requestPermissions();
-    if (!hasPermission) {
-      this.onError('Microphone permission is required for voice mode.');
-      return null;
-    }
-
-    if (this.SpeechRecognition) {
-      this.recognition = new this.SpeechRecognition();
-      this.recognition.continuous = false;
-      this.recognition.interimResults = true;
-      this.recognition.lang = 'en-US';
-
-      this.recognition.onstart = () => {
-        this.isListening = true;
-        this.onStatusChange('listening');
-      };
-
-      this.recognition.onresult = (event) => {
-        let finalTranscript = '';
-        let interimTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript;
-          } else {
-            interimTranscript += transcript;
-          }
-        }
-
-        if (interimTranscript) {
-          this.onMessage({ type: 'interim_transcript', content: interimTranscript });
-        }
-
-        if (finalTranscript) {
-          this.onMessage({ type: 'user_transcript', content: finalTranscript.trim() });
-        }
-      };
-
-      this.recognition.onend = () => {
-        this.isListening = false;
-        this.onStatusChange('connected');
-      };
-
-      this.recognition.onerror = (event) => {
-        this.isListening = false;
-        this.onStatusChange('connected');
-        this.onError('Speech recognition error: ' + event.error);
-      };
-
-      this.isConnected = true;
-      return 'demo-conversation-id';
-    } else {
-      this.onError('Speech recognition not supported in this browser.');
-      return null;
-    }
-  }
-
-  startListening() {
-    if (this.recognition && this.isConnected && !this.isListening) {
-      try {
-        this.recognition.start();
-      } catch (error) {
-        this.onError('Failed to start listening.');
-      }
-    }
-  }
-
-  stopListening() {
-    if (this.recognition && this.isListening) {
-      this.recognition.stop();
-    }
-  }
-
-  async speak(text, voiceId) { // Added voiceId parameter
-    if (!this.elevenLabsApiKey || !voiceId) {
-      console.error("ElevenLabs API key or Voice ID is missing. Falling back to browser synthesis.");
-      // Fallback to browser synthesis if ElevenLabs is not configured
-      return new Promise((resolve) => {
-        if (this.synthesis) {
-          this.synthesis.cancel();
-          this.isSpeaking = true;
-          this.onStatusChange('speaking');
-          
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.rate = 0.7;
-          utterance.pitch = 0.6;
-          utterance.volume = 0.9;
-          
-          utterance.onend = () => {
-            this.isSpeaking = false;
-            this.onStatusChange('connected');
-            resolve();
-          };
-          
-          this.synthesis.speak(utterance);
-        } else {
-          resolve();
-        }
-      });
-    }
-
-    this.isSpeaking = true;
-    this.onStatusChange('speaking');
-
-    try {
-      const response = await fetch(`${this.elevenLabsApiUrl}${voiceId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'xi-api-key': this.elevenLabsApiKey,
-        },
-        body: JSON.stringify({
-          text: text,
-          model_id: "eleven_monolingual_v1", // Or another appropriate model_id
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`ElevenLabs API error: ${response.statusText} - ${errorText}`);
-      }
-
-      const audioBlob = await response.blob();
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-
-      if (this.audioSource) {
-        this.audioSource.stop();
-        this.audioSource.disconnect();
-      }
-
-      this.audioSource = this.audioContext.createBufferSource();
-      this.audioSource.buffer = audioBuffer;
-      this.audioSource.connect(this.audioContext.destination);
-      this.audioSource.start(0);
-
-      return new Promise(resolve => {
-        this.audioSource.onended = () => {
-          this.isSpeaking = false;
-          this.onStatusChange('connected');
-          this.audioSource = null;
-          resolve();
-        };
-      });
-
-    } catch (error) {
-      console.error("Error speaking with ElevenLabs:", error);
-      this.onError(`ElevenLabs speech error: ${error.message}`);
-      this.isSpeaking = false;
-      this.onStatusChange('connected');
-      return Promise.resolve(); 
-    }
-  }
-
-  disconnect() {
-    this.isConnected = false;
-    if (this.recognition) {
-      this.recognition.stop();
-      this.isListening = false;
-    }
-    if (this.audioSource) {
-      this.audioSource.stop();
-      this.audioSource.disconnect();
-      this.audioSource = null;
-    }
-    this.isSpeaking = false;
-    this.hasPermission = false;
-  }
-}
-
-// Car Market Data Service
-export class CarMarketDataService {
-  constructor() {
-    this.cache = new Map();
-    this.cacheTimeout = 60 * 60 * 1000;
-  }
-
-  async getCarData(make, model, year) {
-    const cacheKey = `${make}-${model}-${year}`;
-    
-    if (this.cache.has(cacheKey)) {
-      const cached = this.cache.get(cacheKey);
-      if (Date.now() - cached.timestamp < this.cacheTimeout) {
-        return cached.data;
-      }
-    }
-
-    const basePrice = this.calculateBasePrice(make, model, year);
-    const marketFactors = this.getMarketFactors(make, model, year);
-    
-    const carData = {
-      id: Date.now() + Math.random(),
-      make,
-      model,
-      year,
-      price: Math.round(basePrice * marketFactors.dealer),
-      msrp: Math.round(basePrice * marketFactors.msrp),
-      tradeInValue: Math.round(basePrice * marketFactors.tradeIn),
-      privatePartyValue: Math.round(basePrice * marketFactors.privateParty),
-      marketTrend: marketFactors.trend,
-      marketActivity: this.getMarketActivity(make, model, year),
-      fuelEconomy: this.estimateFuelEconomy(make, model, year),
-      safetyRating: this.estimateSafetyRating(make, model, year),
-      availableListings: Math.floor(Math.random() * 50) + 10,
-      lastUpdated: new Date().toLocaleString(),
-      khan_description: this.generateKhanDescription(make, model, year)
-    };
-
-    this.cache.set(cacheKey, {
-      data: carData,
-      timestamp: Date.now()
-    });
-
-    return carData;
-  }
-
-  calculateBasePrice(make, model, year) {
-    const currentYear = new Date().getFullYear();
-    const age = currentYear - year;
-    
-    const basePrices = {
-      honda: { civic: 28000, accord: 32000, 'cr-v': 35000, pilot: 42000 },
-      toyota: { camry: 32000, corolla: 25000, 'rav4': 38000, highlander: 45000 },
-      ford: { 'f-150': 45000, mustang: 38000, escape: 35000, explorer: 42000 },
-      chevrolet: { silverado: 43000, malibu: 28000, equinox: 33000, tahoe: 58000 },
-      bmw: { '3series': 45000, 'x3': 52000, 'x5': 68000 },
-      mercedes: { 'c-class': 48000, 'glc': 55000, 'gle': 72000 },
-      tesla: { 'model3': 42000, 'modely': 52000, 'models': 85000 }
-    };
-
-    const makeKey = make.toLowerCase();
-    const modelKey = model.toLowerCase().replace(/[\s-]/g, '');
-    
-    let basePrice = 35000;
-    if (basePrices[makeKey] && basePrices[makeKey][modelKey]) {
-      basePrice = basePrices[makeKey][modelKey];
-    }
-
-    const depreciationFactors = {
-      0: 1.0, 1: 0.82, 2: 0.70, 3: 0.62, 4: 0.56, 5: 0.52,
-      6: 0.48, 7: 0.45, 8: 0.42, 9: 0.40, 10: 0.38
-    };
-
-    const depreciationFactor = depreciationFactors[Math.min(age, 10)] || 0.35;
-    return Math.round(basePrice * depreciationFactor);
-  }
-
-  getMarketFactors(make, model, year) {
-    const luxuryBrands = ['bmw', 'mercedes', 'audi', 'lexus', 'tesla'];
-    const popularModels = ['civic', 'camry', 'f-150', 'rav4', 'cr-v'];
-    
-    const isLuxury = luxuryBrands.includes(make.toLowerCase());
-    const isPopular = popularModels.includes(model.toLowerCase().replace(/[\s-]/g, ''));
-    
-    let msrpMultiplier = 1.0;
-    let demandMultiplier = 1.0;
-    
-    if (isLuxury) {
-      msrpMultiplier = 1.2;
-      demandMultiplier = 0.9;
-    }
-    
-    if (isPopular) {
-      demandMultiplier = 1.1;
-    }
-
-    return {
-      msrp: msrpMultiplier,
-      tradeIn: 0.75 * demandMultiplier,
-      privateParty: 0.85 * demandMultiplier,
-      dealer: 0.92 * demandMultiplier,
-      trend: this.getMarketTrend(make, model, year)
-    };
-  }
-
-  getMarketTrend(make, model, year) {
-    const currentYear = new Date().getFullYear();
-    const age = currentYear - year;
-    
-    const evModels = ['model3', 'modely', 'leaf', 'bolt', 'ioniq'];
-    const isEV = evModels.some(ev => model.toLowerCase().includes(ev.replace(/\d/, '')));
-    
-    if (isEV) return '📈 Rising';
-    if (age < 3) return '➡️ Stable';
-    if (age > 8) return '📉 Declining';
-    return '➡️ Stable';
-  }
-
-  generateKhanDescription(make, model, year) {
-    const descriptions = [
-      `A mighty ${year} ${make} ${model} - this mechanical steed will carry you to victory in your daily conquests!`,
-      `Behold the ${year} ${make} ${model}! Like my war horses, reliable and built for the long campaign ahead.`,
-      `The ${year} ${make} ${model} - engineered for dominance! This machine commands respect on any battlefield.`,
-      `A formidable ${year} ${make} ${model}! Your enemies will tremble as you approach in this war chariot.`,
-      `This ${year} ${make} ${model} rivals the finest steeds in my imperial stable. Choose wisely, warrior!`
-    ];
-    return descriptions[Math.floor(Math.random() * descriptions.length)];
-  }
-
-  estimateSafetyRating(make, model, year) {
-    const ratings = { honda: 5, toyota: 5, subaru: 5, volvo: 5, tesla: 5, bmw: 4, mercedes: 4 };
-    return ratings[make.toLowerCase()] || 4;
-  }
-
-  estimateFuelEconomy(make, model, year) {
-    const economy = { honda: 32, toyota: 31, tesla: 120, ford: 28, chevrolet: 27, bmw: 26 };
-    return economy[make.toLowerCase()] || 28;
-  }
-
-  getMarketActivity(make, model, year) {
-    const activities = ['🔥 High Demand', '📊 Moderate Activity', '📉 Low Activity'];
-    return activities[Math.floor(Math.random() * activities.length)];
-  }
-
-  getPopularModels() {
-    return [
-      { make: 'Honda', model: 'Civic', year: 2024 },
-      { make: 'Toyota', model: 'Camry', year: 2024 },
-      { make: 'Ford', model: 'F-150', year: 2024 },
-      { make: 'Tesla', model: 'Model 3', year: 2024 },
-      { make: 'Honda', model: 'CR-V', year: 2024 },
-      { make: 'Toyota', model: 'RAV4', year: 2024 }
-    ];
-  }
-}
-
 // Genghis Khan Persona Data
 import genghisKhanPersona from './personas/genghisKhan';
 import benjaminFranklinPersona from './personas/benjaminFranklin';
 import johnDRockefellerPersona from './personas/johnDRockefeller';
+import NegotiationScorer from './negotiation/NegotiationScorer'; // Import NegotiationScorer
+import NegotiationEngine from './negotiation/NegotiationEngine'; // Import NegotiationEngine
+import NegotiationTimer from './components/NegotiationTimer'; // Import NegotiationTimer
+import { CarMarketDataService } from './services/CarMarketDataService'; // Import CarMarketDataService
+import { VoiceAI } from './services/VoiceAI'; // Import VoiceAI
 
 export default function NegotiationLegends() {
   const [currentScreen, setCurrentScreen] = useState('home');
+  const [negotiationScore, setNegotiationScore] = useState(0); // State to hold the negotiation score
+  const [negotiationScorer] = useState(new NegotiationScorer()); // Initialize the scorer
   const [selectedCar, setSelectedCar] = useState(null);
   const [selectedPersona, setSelectedPersona] = useState(genghisKhanPersona); // New state for selected persona
   const [conversation, setConversation] = useState([]);
@@ -389,10 +33,26 @@ export default function NegotiationLegends() {
     wins: 0,
     totalNegotiations: 0
   });
+  const [negotiationDuration, setNegotiationDuration] = useState(0); // Total time for negotiation
+  const [negotiationTimeRemaining, setNegotiationTimeRemaining] = useState(0); // Remaining time
+  const [negotiationEnded, setNegotiationEnded] = useState(false); // New state for negotiation end
 
   useEffect(() => {
     loadMarketCars();
   }, []);
+
+  // Calculate negotiation duration based on persona patience
+  useEffect(() => {
+    if (selectedPersona && currentScreen === 'negotiation') {
+      const minTime = 2 * 60; // 2 minutes
+      const maxTime = 10 * 60; // 10 minutes
+      const patience = selectedPersona.stats.patience;
+      const calculatedDuration = Math.round(minTime + ((patience - 1) / 9) * (maxTime - minTime));
+      setNegotiationDuration(calculatedDuration);
+      setNegotiationTimeRemaining(calculatedDuration);
+      setNegotiationEnded(false); // Reset negotiation ended state
+    }
+  }, [selectedPersona, currentScreen]);
 
   const loadMarketCars = async () => {
     setIsLoadingCars(true);
@@ -434,16 +94,24 @@ export default function NegotiationLegends() {
                 isVoice: true
               };
               
-              const personaResponse = await generatePersonaResponse(selectedPersona, message.content, conversation); // Await and pass conversation
+              const personaResponseText = await generatePersonaResponse(selectedPersona, newUserMessage.message, conversation, selectedCar, negotiationTimeRemaining); // Pass time remaining
               const personaMessage = {
                 speaker: selectedPersona.id,
-                message: personaResponse,
+                message: personaResponseText,
                 timestamp: new Date(),
                 isVoice: true
               };
               
               setConversation(prev => [...prev, newUserMessage, personaMessage]);
-              voiceAI.speak(personaResponse, selectedPersona.elevenLabsVoiceId); // Pass voiceId from selected persona
+              voiceAI.speak(personaMessage.message, selectedPersona.elevenLabsVoiceId); // Pass voiceId from selected persona
+
+              // Score the user's message
+              const scoreResult = negotiationScorer.score(newUserMessage.message, { personaResponse: personaResponseText });
+              if (scoreResult === '+') {
+                setNegotiationScore(prev => prev + 1);
+              } else if (scoreResult === '-') {
+                setNegotiationScore(prev => prev - 1);
+              }
               
             } else if (message.type === 'interim_transcript') {
               setInterimTranscript(message.content);
@@ -500,9 +168,23 @@ export default function NegotiationLegends() {
     }
   };
 
-  const generatePersonaResponse = async (persona, userInput, conversationHistory) => {
+  const handleTimeUp = () => {
+    setNegotiationEnded(true);
+    // Add logic for what happens when time is up (e.g., persona makes final statement, negotiation ends)
+    const timeUpMessage = {
+      speaker: selectedPersona.id,
+      message: `Time has expired, warrior! Your opportunity has passed.`,
+      timestamp: new Date(),
+      isSystem: true // Indicate this is a system message
+    };
+    setConversation(prev => [...prev, timeUpMessage]);
+    voiceAI.speak(timeUpMessage.message, selectedPersona.elevenLabsVoiceId);
+  };
+
+  const generatePersonaResponse = async (persona, userInput, conversationHistory, selectedCar, timeRemaining) => { // Added timeRemaining
     const DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY;
     const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+    const negotiationEngine = new NegotiationEngine(); // Initialize NegotiationEngine
 
     if (!DEEPSEEK_API_KEY) {
       console.error("Deepseek API key is not set. Cannot generate AI response.");
@@ -517,6 +199,12 @@ export default function NegotiationLegends() {
         Current negotiation context: The user is interested in a car. Focus on the car sale.
         `
       },
+      // Add a system message for the NegotiationEngine's decision
+      // This will be populated by the NegotiationEngine
+      {
+        role: "system",
+        content: "" // Placeholder for negotiation engine decision context
+      },
       ...conversationHistory.slice(-5).map(msg => ({ // Include last 5 messages for context
         role: msg.speaker === 'user' ? 'user' : 'assistant',
         content: msg.message
@@ -526,6 +214,18 @@ export default function NegotiationLegends() {
         content: userInput
       }
     ];
+
+    // Placeholder for user's offer parsing (Phase 3)
+    // For now, we'll assume the user's message is a price offer.
+    // In Phase 3, we'll parse for price AND financing terms.
+    const userOffer = { price: parseFloat(userInput.replace(/[^0-9.]/g, '')) || 0 }; // Extract number from user input
+
+    // Evaluate the offer using the NegotiationEngine
+    const negotiationState = { timeRemaining: timeRemaining, conversationHistory: conversationHistory }; // Pass actual timeRemaining
+    const { decision, context: engineContext } = negotiationEngine.evaluateOffer(userOffer, persona, selectedCar, negotiationState);
+
+    // Update the system prompt with the negotiation engine's decision
+    messages[1].content = `Based on the user's offer and your negotiation style, your internal decision is: ${decision}. Reason: ${engineContext.reason}. Offer Details: ${JSON.stringify(engineContext.offerDetails)}. Nudge Type: ${engineContext.nudgeType || 'none'}. Your response should reflect this decision and context.`;
 
     try {
       const response = await fetch(DEEPSEEK_API_URL, {
@@ -569,7 +269,7 @@ export default function NegotiationLegends() {
   };
 
   const sendMessage = async () => {
-    if (!userMessage.trim()) return;
+    if (!userMessage.trim() || negotiationEnded) return; // Disable input if negotiation ended
 
     const newUserMessage = {
       speaker: 'user',
@@ -577,14 +277,23 @@ export default function NegotiationLegends() {
       timestamp: new Date()
     };
 
+    const personaResponseText = await generatePersonaResponse(selectedPersona, newUserMessage.message, conversation, selectedCar, negotiationTimeRemaining); // Await and pass conversation and selectedCar, timeRemaining
     const personaResponse = {
       speaker: selectedPersona.id,
-      message: await generatePersonaResponse(selectedPersona, userMessage, conversation), // Await and pass conversation
+      message: personaResponseText,
       timestamp: new Date()
     };
 
     setConversation(prev => [...prev, newUserMessage, personaResponse]);
     setUserMessage('');
+
+    // Score the user's message
+    const scoreResult = negotiationScorer.score(newUserMessage.message, { personaResponse: personaResponseText });
+    if (scoreResult === '+') {
+      setNegotiationScore(prev => prev + 1);
+    } else if (scoreResult === '-') {
+      setNegotiationScore(prev => prev - 1);
+    }
   };
 
   const PersonaStat = ({ label, value, max = 10 }) => (
@@ -726,9 +435,8 @@ export default function NegotiationLegends() {
                         setSelectedPersona(johnDRockefellerPersona);
                         setCurrentScreen('carSelection');
                       }}
-                      className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 px-4 rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg font-semibold"
-                    >
-                      Challenge Rockefeller
+                      className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 px-4 rounded-xl font-semibold opacity-50 cursor-not-allowed">
+                      Coming Soon
                     </button>
                   </div>
                 </div>
@@ -963,7 +671,7 @@ export default function NegotiationLegends() {
               </div>
 
               {/* Persona Info */}
-              <div className={`bg-gradient-to-br ${selectedPersona.id === 'genghis_khan' ? 'from-red-50 to-orange-50 border-red-200' : 'from-blue-50 to-indigo-50 border-blue-200'} border-2 rounded-2xl p-6`}>
+              <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
                 <div className="text-center">
                   {selectedPersona.avatar && selectedPersona.avatar.startsWith('/') ? (
                     <img src={selectedPersona.avatar} alt={selectedPersona.name} className="h-24 w-24 mx-auto mb-4 rounded-full object-cover" />
@@ -979,6 +687,24 @@ export default function NegotiationLegends() {
                     ))}
                   </div>
                 </div>
+              </div>
+
+              {/* Score Display Panel */}
+              <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Negotiation Score</h3>
+                <div className="text-center">
+                  <p className="text-6xl font-bold text-purple-600 mb-2">{negotiationScore}</p>
+                  <p className="text-lg text-gray-600">Current Score</p>
+                </div>
+              </div>
+
+              {/* Negotiation Timer */}
+              <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Time Remaining</h3>
+                <NegotiationTimer 
+                  durationInSeconds={negotiationTimeRemaining} 
+                  onTimeUp={handleTimeUp} 
+                />
               </div>
             </div>
 
@@ -1079,11 +805,11 @@ export default function NegotiationLegends() {
                       placeholder="Type your negotiation message..."
                       className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                      disabled={voiceStatus === 'listening'}
+                      disabled={voiceStatus === 'listening' || negotiationEnded}
                     />
                     <button
                       onClick={sendMessage}
-                      disabled={!userMessage.trim() || voiceStatus === 'listening'}
+                      disabled={!userMessage.trim() || voiceStatus === 'listening' || negotiationEnded}
                       className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                     >
                       <Send className="h-5 w-5" />
@@ -1131,28 +857,6 @@ export default function NegotiationLegends() {
                   <li className="flex items-center">
                     <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
                     Voice AI conversations with historical figures
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    Real-time car market data integration
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    Genghis Khan persona with unique strategies
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    Professional UI inspired by 21st.dev
-                  </li>
-                </ul>
-              </div>
-
-              <div className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-200">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">🏆 Built For</h3>
-                <ul className="space-y-2 text-gray-700">
-                  <li className="flex items-center">
-                    <Award className="h-4 w-4 text-purple-500 mr-2" />
-                    Bolt 2025 Hackathon Competition
                   </li>
                   <li className="flex items-center">
                     <Award className="h-4 w-4 text-purple-500 mr-2" />

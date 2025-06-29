@@ -12,6 +12,18 @@ const genghisKhanPersona = {
     flexibility: 4,
     emotionalAppeal: 1,
     riskTolerance: 8
+  },
+  // Negotiation specific attributes
+  minAcceptablePriceFactor: 0.95, // Will not go below 95% of MSRP
+  initialOfferFactor: 1.1,       // Starts negotiation at 110% of MSRP
+  financingPreferences: {
+    cashPreference: 0.9,         // High preference for cash deals
+    interestRateFlexibility: 0.2, // Low flexibility on interest rates (wants high)
+    termFlexibility: 0.2           // Low flexibility on loan terms (prefers short)
+  },
+  patienceThresholds: {
+    impatientAtPercent: 0.7,     // Starts nudging when 70% of time is left
+    ultimatumAtPercent: 0.9      // Gives ultimatum when 90% of time is left
   }
 };
 
