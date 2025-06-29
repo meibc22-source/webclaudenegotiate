@@ -32,7 +32,9 @@ export class CarMarketDataService {
       safetyRating: this.estimateSafetyRating(make, model, year),
       availableListings: Math.floor(Math.random() * 50) + 10,
       lastUpdated: new Date().toLocaleString(),
-      khan_description: this.generateKhanDescription(make, model, year)
+      khan_description: this.generateKhanDescription(make, model, year),
+      franklin_description: this.generateFranklinDescription(make, model, year),
+      rockefeller_description: this.generateRockefellerDescription(make, model, year)
     };
 
     this.cache.set(cacheKey, {
@@ -122,6 +124,28 @@ export class CarMarketDataService {
       `The ${year} ${make} ${model} - engineered for dominance! This machine commands respect on any battlefield.`,
       `A formidable ${year} ${make} ${model}! Your enemies will tremble as you approach in this war chariot.`,
       `This ${year} ${make} ${model} rivals the finest steeds in my imperial stable. Choose wisely, warrior!`
+    ];
+    return descriptions[Math.floor(Math.random() * descriptions.length)];
+  }
+
+  generateFranklinDescription(make, model, year) {
+    const descriptions = [
+      `Indeed, a fine ${year} ${make} ${model}! A prudent choice for any discerning individual seeking both utility and a touch of elegance.`,
+      `This ${year} ${make} ${model} represents a sound investment. Its reliability and efficiency will serve you well, ensuring a comfortable journey.`,
+      `A most advantageous ${year} ${make} ${model}! Consider the long-term benefits of such a well-crafted machine.`,
+      `One could not ask for a more sensible ${year} ${make} ${model}. It combines practical design with a certain understated charm.`,
+      `I find this ${year} ${make} ${model} to be quite agreeable. It possesses the qualities of a dependable companion for your daily endeavors.`
+    ];
+    return descriptions[Math.floor(Math.random() * descriptions.length)];
+  }
+
+  generateRockefellerDescription(make, model, year) {
+    const descriptions = [
+      `A shrewd acquisition, this ${year} ${make} ${model}. Its market value and potential for appreciation are undeniable.`,
+      `Invest wisely in this ${year} ${make} ${model}. Data suggests it will yield substantial returns in the long run.`,
+      `This ${year} ${make} ${model} is a strategic asset. Its efficiency and robust performance align with sound business principles.`,
+      `Observe the market data for this ${year} ${make} ${model}. It presents a compelling opportunity for the discerning buyer.`,
+      `Only a fool would overlook the intrinsic value of this ${year} ${make} ${model}. It's a calculated decision for financial growth.`
     ];
     return descriptions[Math.floor(Math.random() * descriptions.length)];
   }

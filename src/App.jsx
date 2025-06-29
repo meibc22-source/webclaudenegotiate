@@ -619,7 +619,7 @@ export default function NegotiationLegends() {
     setConversation([
       {
         speaker: selectedPersona.id,
-        message: `I am ${selectedPersona.name}, ${selectedPersona.title}. You have entered my domain. You show interest in ${car.khan_description}`,
+        message: `Greetings. I am ${selectedPersona.name}, ${selectedPersona.title}. You have chosen to negotiate for this automobile: ${selectedPersona.id === 'benjamin_franklin' ? car.franklin_description : (selectedPersona.id === 'john_d_rockefeller' ? car.rockefeller_description : car.khan_description)}`,
         timestamp: new Date()
       }
     ]);
@@ -796,7 +796,7 @@ export default function NegotiationLegends() {
                   </div>
                 </div>
                 
-                <div className="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-6 hover:border-blue-400 transition-all duration-300 cursor-pointer opacity-60">
+                <div className="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-6 hover:border-blue-400 transition-all duration-300 cursor-pointer transform hover:scale-105">
                   <div className="text-center">
                     {benjaminFranklinPersona.avatar.startsWith('/') ? (
                       <img src={benjaminFranklinPersona.avatar} alt={benjaminFranklinPersona.name} className="h-24 w-24 mx-auto mb-4 rounded-full object-cover" />
@@ -818,13 +818,14 @@ export default function NegotiationLegends() {
                         setSelectedPersona(benjaminFranklinPersona);
                         setCurrentScreen('carSelection');
                       }}
-                      className="w-full bg-gradient-to-r from-blue-400 to-blue-500 text-white py-3 px-4 rounded-xl font-semibold opacity-50 cursor-not-allowed">
-                      Coming Soon
+                      className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-4 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg font-semibold"
+                    >
+                      Challenge Franklin
                     </button>
                   </div>
                 </div>
 
-                <div className="group relative overflow-hidden bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-6 hover:border-green-400 transition-all duration-300 cursor-pointer">
+                <div className="group relative overflow-hidden bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-6 hover:border-green-400 transition-all duration-300 cursor-pointer transform hover:scale-105">
                   <div className="text-center">
                     {johnDRockefellerPersona.avatar.startsWith('/') ? (
                       <img src={johnDRockefellerPersona.avatar} alt={johnDRockefellerPersona.name} className="h-24 w-24 mx-auto mb-4 rounded-full object-cover" />
@@ -946,7 +947,7 @@ export default function NegotiationLegends() {
               Choose Your <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Negotiation Vehicle</span>
             </h1>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Select a car to negotiate for with Genghis Khan. Each vehicle comes with real market data to help you make informed decisions.
+              Select a car to negotiate for with {selectedPersona.name}. Each vehicle comes with real market data to help you make informed decisions.
             </p>
           </div>
 
@@ -1008,17 +1009,17 @@ export default function NegotiationLegends() {
                     </div>
 
                     <div className="mb-6">
-                      <div className="text-sm text-gray-600 mb-2">Khan's Description:</div>
-                      <p className="text-sm italic text-gray-700 bg-red-50 p-3 rounded-lg border border-red-100">
-                        "{car.khan_description}"
-                      </p>
+                      <div className="text-sm text-gray-600 mb-2">{selectedPersona.name}'s Description:</div>
+                    <p className="text-sm italic text-gray-700 bg-red-50 p-3 rounded-lg border border-red-100">
+                        "{selectedPersona.id === 'benjamin_franklin' ? car.franklin_description : (selectedPersona.id === 'john_d_rockefeller' ? car.rockefeller_description : car.khan_description)}"
+                    </p>
                     </div>
 
                     <button 
                       onClick={() => startNegotiation(car)}
                       className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 px-4 rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-300 shadow-lg font-semibold"
                     >
-                      Negotiate with Khan
+                      Negotiate with {selectedPersona.name}
                     </button>
                   </div>
                 </div>
