@@ -12,6 +12,19 @@ const genghisKhanPersona = {
     flexibility: 4,
     emotionalAppeal: 1,
     riskTolerance: 8
+  },
+  // Negotiation-specific attributes
+  minAcceptablePriceFactor: 0.85, // Khan won't go below 85% of dealer price
+  initialOfferFactor: 0.95, // Khan's initial counter-offer will be 95% of dealer price
+  financingPreferences: {
+    minDownPaymentRatio: 0.20, // Prefers at least 20% down
+    maxLoanTermMonths: 36,     // Prefers loan terms no longer than 36 months
+    minInterestRate: 0.08      // Prefers interest rates no lower than 8% for seller financing
+  },
+  patienceThresholds: {
+    low: 60,  // Starts nudging if negotiation drags beyond 60 seconds
+    medium: 30, // Becomes more aggressive after 30 seconds
+    high: 10 // May walk away or give ultimatum after 10 seconds
   }
 };
 

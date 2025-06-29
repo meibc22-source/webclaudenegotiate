@@ -368,13 +368,24 @@ export class CarMarketDataService {
 import genghisKhanPersona from './personas/genghisKhan';
 import benjaminFranklinPersona from './personas/benjaminFranklin';
 import johnDRockefellerPersona from './personas/johnDRockefeller';
+import { NegotiationEngine } from './negotiation/NegotiationEngine'; // Import NegotiationEngine
+import NegotiationTimer from './components/NegotiationTimer'; // Import NegotiationTimer
+import { NegotiationScorer } from './negotiation/NegotiationScorer'; // Import NegotiationScorer
 
 export default function NegotiationLegends() {
   const [currentScreen, setCurrentScreen] = useState('home');
+  const [negotiationEngine] = useState(new NegotiationEngine()); // Instantiate NegotiationEngine
+  const [negotiationScorer] = useState(new NegotiationScorer()); // Instantiate NegotiationScorer
+  const [negotiationScore, setNegotiationScore] = useState(0); // New state for negotiation score
+  const [negotiationTimerActive, setNegotiationTimerActive] = useState(false); // New state for timer
   const [selectedCar, setSelectedCar] = useState(null);
   const [selectedPersona, setSelectedPersona] = useState(genghisKhanPersona); // New state for selected persona
   const [conversation, setConversation] = useState([]);
-  const [userMessage, setUserMessage] = useState('');
+  const [userMessage, setUserMessage] = useState(''); // Keep for voice input fallback or general messages
+  const [offerPrice, setOfferPrice] = useState('');
+  const [offerDownPayment, setOfferDownPayment] = useState('');
+  const [offerLoanTerm, setOfferLoanTerm] = useState('');
+  const [offerInterestRate, setOfferInterestRate] = useState('');
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [voiceAI] = useState(new VoiceAI(import.meta.env.VITE_ELEVENLABS_API_KEY)); // Pass API key from environment
   const [voiceStatus, setVoiceStatus] = useState('disconnected');
@@ -509,13 +520,98 @@ export default function NegotiationLegends() {
       return "I am unable to respond at the moment. My AI is offline.";
     }
 
+    // Parse user offer for price and financing terms
+    const parseUserOffer = (text) => {
+      let price = null;
+      let downPayment = null;
+      let loanTerm = null; // in months
+      let interestRate = null; // as a percentage
+
+      // Price: Matches numbers that look like prices (e.g., $25,000, 25k, 25000)
+      const priceMatch = text.match(/(\$?\s*[\d,]+(\.\d{2})?k?)/i);
+      if (priceMatch) {
+        let p = priceMatch[1].replace(/[\$,\s]/g, '').toLowerCase();
+        if (p.endsWith('k')) {
+          p = parseFloat(p.slice(0, -1)) * 1000;
+        } else {
+          p = parseFloat(p);
+        }
+        if (!isNaN(p)) price = p;
+      }
+
+      // Down Payment: "down payment of $X", "X down"
+      const dpMatch = text.match(/(down payment of|(\d+)(?:k)?\s+down)/i);
+      if (dpMatch) {
+        let dp = dpMatch[2] || dpMatch[1].match(/\d+/);
+        if (dp) {
+          dp = dp[0].replace(/[\$,\s]/g, '').toLowerCase();
+          if (dp.endsWith('k')) {
+            dp = parseFloat(dp.slice(0, -1)) * 1000;
+          } else {
+            dp = parseFloat(dp);
+          }
+          if (!isNaN(dp)) downPayment = dp;
+        }
+      }
+
+      // Loan Term: "X months", "for Y years"
+      const termMatch = text.match(/(\d+)\s+(months|month|years|year)/i);
+      if (termMatch) {
+        let term = parseInt(term[1]);
+        if (!isNaN(term)) {
+          if (termMatch[2].toLowerCase().startsWith('year')) {
+            loanTerm = term * 12;
+          } else {
+            loanTerm = term;
+          }
+        }
+      }
+
+      // Interest Rate: "X percent", "X%"
+      const irMatch = text.match(/(\d+(\.\d+)?)\s*%/i) || text.match(/(\d+(\.\d+)?)\s+percent/i);
+      if (irMatch) {
+        let ir = parseFloat(irMatch[1]);
+        if (!isNaN(ir)) interestRate = ir;
+      }
+
+      return { price, financing: { downPayment, loanTerm, interestRate } };
+    };
+
+    const userOffer = parseUserOffer(userInput);
+
+    // Get current car data (assuming selectedCar is available in scope)
+    const currentCarData = selectedCar; // This needs to be passed or accessed globally
+
+    // Evaluate the offer using the NegotiationEngine
+    const negotiationResult = negotiationEngine.evaluateOffer(persona, userOffer, currentCarData, null); // timeRemaining can be null for now
+
+    let personaSystemContent = `You are ${persona.name}, also known as "${persona.title}". Your persona is: "${persona.description}". Your negotiation stats are: ${JSON.stringify(persona.stats)}.
+    You are a car salesman. Respond concisely and in character, reflecting your persona's traits.
+    Current negotiation context: The user is interested in a car. Focus on the car sale.
+    The user's last offer was: ${JSON.stringify(userOffer)}.
+    Your evaluation of the offer is: ${negotiationResult.context}.`;
+
+    if (negotiationResult.counterOffer && negotiationResult.counterOffer.price) {
+      personaSystemContent += ` You are countering with a price of $${negotiationResult.counterOffer.price.toLocaleString()}.`;
+    }
+    if (negotiationResult.counterOffer && negotiationResult.counterOffer.financing) {
+      const financingCounter = negotiationResult.counterOffer.financing;
+      if (financingCounter.downPayment) {
+        personaSystemContent += ` You are countering with a down payment of $${financingCounter.downPayment.toLocaleString()}.`;
+      }
+      if (financingCounter.loanTerm) {
+        personaSystemContent += ` You are countering with a loan term of ${financingCounter.loanTerm} months.`;
+      }
+      if (financingCounter.interestRate) {
+        personaSystemContent += ` You are countering with an interest rate of ${financingCounter.interestRate}%.`;
+      }
+    }
+
+
     const messages = [
       {
         role: "system",
-        content: `You are ${persona.name}, also known as "${persona.title}". Your persona is: "${persona.description}". Your negotiation stats are: ${JSON.stringify(persona.stats)}.
-        You are a car salesman. Respond concisely and in character, reflecting your persona's traits.
-        Current negotiation context: The user is interested in a car. Focus on the car sale.
-        `
+        content: personaSystemContent
       },
       ...conversationHistory.slice(-5).map(msg => ({ // Include last 5 messages for context
         role: msg.speaker === 'user' ? 'user' : 'assistant',
@@ -558,6 +654,8 @@ export default function NegotiationLegends() {
 
   const startNegotiation = (car) => {
     setSelectedCar(car);
+    setNegotiationScore(negotiationScorer.initialUserScore); // Set initial score
+    setNegotiationTimerActive(true); // Activate timer
     setConversation([
       {
         speaker: selectedPersona.id,
@@ -568,23 +666,90 @@ export default function NegotiationLegends() {
     setCurrentScreen('negotiation');
   };
 
+  const handleTimeUp = () => {
+    setNegotiationTimerActive(false);
+    // Optionally add a message to the conversation or end the negotiation
+    setConversation(prev => [...prev, {
+      speaker: 'system',
+      message: `Time is up! The negotiation has concluded.`,
+      timestamp: new Date()
+    }]);
+    // You might want to transition to a results screen or handle negotiation end here
+  };
+
   const sendMessage = async () => {
-    if (!userMessage.trim()) return;
+    // If structured inputs are used, construct the user message from them
+    let messageContent = userMessage; // Default to text input
+    let userOffer = {};
+
+    if (offerPrice || offerDownPayment || offerLoanTerm || offerInterestRate) {
+      // Construct a structured offer message
+      const parts = [];
+      if (offerPrice) {
+        parts.push(`price of $${parseFloat(offerPrice).toLocaleString()}`);
+        userOffer.price = parseFloat(offerPrice);
+      }
+      if (offerDownPayment) {
+        parts.push(`down payment of $${parseFloat(offerDownPayment).toLocaleString()}`);
+        userOffer.financing = { ...userOffer.financing, downPayment: parseFloat(offerDownPayment) };
+      }
+      if (offerLoanTerm) {
+        parts.push(`loan term of ${parseInt(offerLoanTerm)} months`);
+        userOffer.financing = { ...userOffer.financing, loanTerm: parseInt(offerLoanTerm) };
+      }
+      if (offerInterestRate) {
+        parts.push(`interest rate of ${parseFloat(offerInterestRate)}%`);
+        userOffer.financing = { ...userOffer.financing, interestRate: parseFloat(offerInterestRate) };
+      }
+      messageContent = `I offer a ${parts.join(', ')}.`;
+    } else if (!userMessage.trim()) {
+      return; // No input
+    } else {
+      // If only natural language input is used, parse it
+      userOffer = negotiationEngine.parseUserOffer(userMessage);
+    }
 
     const newUserMessage = {
       speaker: 'user',
-      message: userMessage,
+      message: messageContent,
       timestamp: new Date()
     };
 
-    const personaResponse = {
+    const personaResponseText = await generatePersonaResponse(selectedPersona, messageContent, conversation);
+    
+    // Create a dummy personaResponse object for scoring.
+    // In a real scenario, generatePersonaResponse would return a structured object
+    // that includes the persona's decision and counterOffer details.
+    // For now, we'll infer a basic decision for scoring.
+    const tempPersonaResponse = {
+      decision: personaResponseText.includes("accept") ? "Accept" :
+                personaResponseText.includes("counter") || personaResponseText.includes("propose") ? "Counter" :
+                personaResponseText.includes("low") || personaResponseText.includes("cannot accept") ? "Reject" : "Counter", // Basic inference
+      counterOffer: {} // Placeholder, would be populated by actual engine result
+    };
+    
+    // Update negotiation score
+    const updatedScore = negotiationScorer.evaluateMove(
+      negotiationScore,
+      userOffer, // Use the userOffer constructed here
+      tempPersonaResponse,
+      selectedCar
+    );
+    setNegotiationScore(updatedScore);
+
+
+    const personaMessage = {
       speaker: selectedPersona.id,
-      message: await generatePersonaResponse(selectedPersona, userMessage, conversation), // Await and pass conversation
+      message: personaResponseText,
       timestamp: new Date()
     };
 
-    setConversation(prev => [...prev, newUserMessage, personaResponse]);
+    setConversation(prev => [...prev, newUserMessage, personaMessage]);
     setUserMessage('');
+    setOfferPrice('');
+    setOfferDownPayment('');
+    setOfferLoanTerm('');
+    setOfferInterestRate('');
   };
 
   const PersonaStat = ({ label, value, max = 10 }) => (
@@ -989,6 +1154,18 @@ export default function NegotiationLegends() {
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-bold text-gray-900">Negotiation Arena</h3>
                     <div className="flex items-center space-x-4">
+                      {/* Negotiation Timer */}
+                      <NegotiationTimer 
+                        duration={900} // 15 minutes (900 seconds)
+                        onTimeUp={handleTimeUp}
+                        isActive={negotiationTimerActive}
+                      />
+                      {/* Negotiation Score */}
+                      <div className="flex items-center space-x-2 p-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg">
+                        <TrendingUp className="h-5 w-5" />
+                        <span className="font-semibold text-lg">Score: {negotiationScore}</span>
+                      </div>
+
                       {/* Voice Controls */}
                       <button
                         onClick={toggleVoiceMode}
@@ -1071,26 +1248,73 @@ export default function NegotiationLegends() {
 
                 {/* Message Input */}
                 <div className="p-6 border-t border-gray-200">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label htmlFor="offerPrice" className="block text-sm font-medium text-gray-700">Price ($)</label>
+                      <input
+                        type="number"
+                        id="offerPrice"
+                        value={offerPrice}
+                        onChange={(e) => setOfferPrice(e.target.value)}
+                        placeholder="e.g., 25000"
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="offerDownPayment" className="block text-sm font-medium text-gray-700">Down Payment ($)</label>
+                      <input
+                        type="number"
+                        id="offerDownPayment"
+                        value={offerDownPayment}
+                        onChange={(e) => setOfferDownPayment(e.target.value)}
+                        placeholder="e.g., 5000"
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="offerLoanTerm" className="block text-sm font-medium text-gray-700">Loan Term (months)</label>
+                      <input
+                        type="number"
+                        id="offerLoanTerm"
+                        value={offerLoanTerm}
+                        onChange={(e) => setOfferLoanTerm(e.target.value)}
+                        placeholder="e.g., 60"
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="offerInterestRate" className="block text-sm font-medium text-gray-700">Interest Rate (%)</label>
+                      <input
+                        type="number"
+                        id="offerInterestRate"
+                        value={offerInterestRate}
+                        onChange={(e) => setOfferInterestRate(e.target.value)}
+                        placeholder="e.g., 4.5"
+                        step="0.1"
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      />
+                    </div>
+                  </div>
                   <div className="flex space-x-4">
                     <input
                       type="text"
                       value={userMessage}
                       onChange={(e) => setUserMessage(e.target.value)}
-                      placeholder="Type your negotiation message..."
+                      placeholder="Or type your negotiation message (e.g., 'What's the best price?')"
                       className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                      disabled={voiceStatus === 'listening'}
+                      disabled={isVoiceEnabled}
                     />
                     <button
                       onClick={sendMessage}
-                      disabled={!userMessage.trim() || voiceStatus === 'listening'}
+                      disabled={isVoiceEnabled && voiceStatus === 'listening'}
                       className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                     >
                       <Send className="h-5 w-5" />
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    {isVoiceEnabled ? 'Hold the microphone button to speak, or type your message.' : 'Enable voice mode to speak with Khan directly.'}
+                    {isVoiceEnabled ? 'Hold the microphone button to speak, or type your message.' : 'Use the fields above for structured offers, or type a natural language message.'}
                   </p>
                 </div>
               </div>
