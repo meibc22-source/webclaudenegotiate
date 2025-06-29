@@ -1,72 +1,40 @@
-// This file will contain the logic for scoring negotiation moves based on the "Getting to Yes" framework.
-// It will evaluate user responses as plus, minus, or neutral.
-
-class NegotiationScorer {
+export class NegotiationScorer {
   constructor() {
-    // Principles of "Getting to Yes"
-    // 1. Separate the people from the problem.
-    // 2. Focus on interests, not positions.
-    // 3. Invent options for mutual gain.
-    // 4. Insist on using objective criteria.
-    // 5. Know your BATNA (Best Alternative To a Negotiated Agreement) - implicit in strategy, not direct scoring.
+    // Constructor for NegotiationScorer
+    this.initialUserScore = 50; // Starting score for the user
+    this.maxScore = 100;
+    this.minScore = 0;
   }
 
   /**
-   * Scores a user's negotiation response based on "Getting to Yes" principles.
-   * @param {string} userResponse The user's negotiation statement.
-   * @param {object} context Additional context for scoring (e.g., current issue, opponent's last statement).
-   * @returns {'+' | '-' | '0'} The score: plus, minus, or neutral.
+   * Evaluates a user's negotiation move and updates their score.
+   * This is a placeholder and should be expanded with more sophisticated logic.
+   * @param {number} currentScore - The user's current negotiation score.
+   * @param {object} userOffer - The user's offer (price, financing, etc.).
+   * @param {object} personaResponse - The persona's response to the offer.
+   * @param {object} carData - The current car data.
+   * @returns {number} The updated negotiation score.
    */
-  score(userResponse, context) {
-    // Convert userResponse to lowercase for case-insensitive matching
-    const response = userResponse.toLowerCase();
-    let score = '0'; // Default to neutral
+  evaluateMove(currentScore, userOffer, personaResponse, carData) {
+    let newScore = currentScore;
 
-    // --- Positive Indicators (suggesting '+') ---
-    // Focusing on interests (why something is important, underlying needs)
-    if (response.includes("why is that important") || response.includes("what's your interest") || response.includes("what's the underlying need")) {
-      score = '+';
-    }
-    // Inventing options for mutual gain (brainstorming, win-win solutions)
-    if (response.includes("what if we tried") || response.includes("how can we both benefit") || response.includes("other possibilities")) {
-      score = '+';
-    }
-    // Insisting on objective criteria (fair standards, independent benchmarks)
-    if (response.includes("what's a fair price") || response.includes("based on market value") || response.includes("independent appraisal")) {
-      score = '+';
-    }
-    // Separating people from the problem (addressing issues, not attacking individuals)
-    if (response.includes("let's focus on the issue") || response.includes("i understand your concern") || response.includes("we can work this out")) {
-      score = '+';
+    // Example scoring logic (very basic):
+    if (personaResponse.decision === 'Accept') {
+      newScore += 10; // Good move
+    } else if (personaResponse.decision === 'Reject') {
+      newScore -= 10; // Bad move
+    } else if (personaResponse.decision === 'Counter') {
+      // If the counter offer price is lower than previous, it's a good sign
+      if (personaResponse.counterOffer && userOffer.price && personaResponse.counterOffer.price < userOffer.price) {
+         newScore += 5;
+      } else {
+        newScore -= 2; // Neutral to slightly negative
+      }
     }
 
-    // --- Negative Indicators (suggesting '-') ---
-    // Attacking the person, not the problem (personal insults, blaming)
-    if (response.includes("you're wrong") || response.includes("you always do this") || response.includes("that's a ridiculous idea")) {
-      score = '-';
-    }
-    // Sticking to positions, not interests (demanding, no flexibility)
-    if (response.includes("my final offer") || response.includes("take it or leave it") || response.includes("i won't budge")) {
-      score = '-';
-    }
-    // Making threats or ultimatums
-    if (response.includes("if you don't") || response.includes("i'll walk away") || response.includes("you'll regret this")) {
-      score = '-';
-    }
-    // Emotional outbursts (anger, frustration, not rational)
-    // This is harder to detect via text, might need more advanced NLP or tone analysis.
-    // For now, simple keywords can hint at it.
-    if (response.includes("i'm furious") || response.includes("this is unacceptable") || response.includes("i'm done with this")) {
-      score = '-';
-    }
+    // Ensure score stays within bounds
+    newScore = Math.max(this.minScore, Math.min(this.maxScore, newScore));
 
-    // A more sophisticated system would use NLP to understand intent and nuance,
-    // rather than just keyword matching. This is a basic starting point.
-    // The `context` parameter will be crucial for more accurate scoring,
-    // as it allows evaluating responses in relation to the ongoing conversation.
-
-    return score;
+    return newScore;
   }
 }
-
-export default NegotiationScorer;

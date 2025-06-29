@@ -13,17 +13,18 @@ const genghisKhanPersona = {
     emotionalAppeal: 1,
     riskTolerance: 8
   },
-  // Negotiation specific attributes
-  minAcceptablePriceFactor: 0.95, // Will not go below 95% of MSRP
-  initialOfferFactor: 1.1,       // Starts negotiation at 110% of MSRP
+  // Negotiation-specific attributes
+  minAcceptablePriceFactor: 0.85, // Khan won't go below 85% of dealer price
+  initialOfferFactor: 0.95, // Khan's initial counter-offer will be 95% of dealer price
   financingPreferences: {
-    cashPreference: 0.9,         // High preference for cash deals
-    interestRateFlexibility: 0.2, // Low flexibility on interest rates (wants high)
-    termFlexibility: 0.2           // Low flexibility on loan terms (prefers short)
+    minDownPaymentRatio: 0.20, // Prefers at least 20% down
+    maxLoanTermMonths: 36,     // Prefers loan terms no longer than 36 months
+    minInterestRate: 0.08      // Prefers interest rates no lower than 8% for seller financing
   },
   patienceThresholds: {
-    impatientAtPercent: 0.7,     // Starts nudging when 70% of time is left
-    ultimatumAtPercent: 0.9      // Gives ultimatum when 90% of time is left
+    low: 60,  // Starts nudging if negotiation drags beyond 60 seconds
+    medium: 30, // Becomes more aggressive after 30 seconds
+    high: 10 // May walk away or give ultimatum after 10 seconds
   }
 };
 
