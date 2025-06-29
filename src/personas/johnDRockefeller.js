@@ -2,7 +2,7 @@ const johnDRockefellerPersona = {
   id: 'john_d_rockefeller',
   name: 'John D. Rockefeller',
   title: 'The Ruthless Businessman',
-  avatar: '', // Setting to empty string as no image provided
+  avatar: '/images/jrockefeller.jpg',
   description: 'Calculates every move, dominates through data and strategic thinking.',
   elevenLabsVoiceId: 'MijWJwalV0YTI5cNnz0a',
   stats: {
