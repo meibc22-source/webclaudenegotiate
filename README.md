@@ -16,7 +16,7 @@ The app simulates car buying negotiations with AI-powered historical figures, sp
 
 ### 2. Historical Persona System
 - Personas are now modular, with each persona defined in its own file (`src/personas/`).
-- Features AI-powered historical figures, including Genghis Khan as a car salesman with unique personality traits.
+- Features AI-powered historical figures, including Genghis Khan, Benjamin Franklin, and John D. Rockefeller as car salesmen with unique personality traits.
 - Each persona has defined stats (aggression, patience, flexibility, etc.) which influence their AI-driven responses.
 - Personas have characteristic speaking patterns and negotiation styles.
 - Supports dynamic avatar rendering, allowing for both image and emoji avatars.
@@ -29,7 +29,7 @@ The app simulates car buying negotiations with AI-powered historical figures, sp
 - Features popular car models from major manufacturers
 
 ### 4. Enhanced Negotiation Gameplay
-- **Negotiation Scoring**: Real-time scoring of user negotiation moves based on the "Getting to Yes" framework (separating people from problem, focusing on interests, inventing options for mutual gain, insisting on objective criteria). The score is displayed in the UI.
+- **AI-Based Turn Negotiation Scoring**: Real-time scoring of user negotiation moves based on the "Getting to Yes" framework (separating people from problem, focusing on interests, inventing options for mutual gain, insisting on objective criteria). The score is displayed in the UI.
 - **Persona-Specific Negotiation Logic**: Personas have dynamic acceptance thresholds for car price and financing terms, influenced by their unique attributes and current market conditions.
 - **Time-Boxed Negotiations**: Negotiations have a time limit, dynamically set based on the selected persona's patience score (ranging from 2 to 10 minutes). A visible countdown timer is displayed. Personas can dynamically adjust their behavior (e.g., become impatient, give ultimatums) as time winds down.
 
@@ -46,7 +46,7 @@ The app simulates car buying negotiations with AI-powered historical figures, sp
 - **Home Screen**: Streamlined landing page focusing on direct persona selection to start a negotiation.
 - **Car Selection**: Browse available vehicles with detailed market data.
 - **Negotiation Arena**: Interactive chat interface for conducting negotiations.
-- **Settings/Demo**: Information about features and hackathon participation.
+- **About App**: Information about features and hackathon participation.
 
 ### 7. Gamification Elements
 - User stats tracking (level, experience, wins, total negotiations)
