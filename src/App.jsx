@@ -758,7 +758,7 @@ export default function NegotiationLegends() {
                   className="inline-flex items-center px-8 py-4 bg-white text-gray-700 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 hover:bg-gray-50"
                 >
                   <Settings className="mr-2 h-5 w-5" />
-                  View Demo
+                  About App
                 </button>
               </div>
             </div>
@@ -1297,7 +1297,7 @@ export default function NegotiationLegends() {
 
           <div className="bg-white rounded-2xl shadow-lg p-8">
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">Demo & Features</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">Features</h1>
               <p className="text-lg text-gray-600">
                 Experience the future of negotiation training with AI-powered historical figures
               </p>
@@ -1317,7 +1317,11 @@ export default function NegotiationLegends() {
                   </li>
                   <li className="flex items-center">
                     <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    Genghis Khan persona with unique strategies
+                    Genghis Khan, Benjamin Franklin, and John D. Rockefeller as personas
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                    AI based turn negotiation scoring
                   </li>
                   <li className="flex items-center">
                     <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
