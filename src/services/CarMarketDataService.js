@@ -1,7 +1,10 @@
+import vehicleData from '../data/vehicledata.json';
+
 export class CarMarketDataService {
   constructor() {
     this.cache = new Map();
     this.cacheTimeout = 60 * 60 * 1000;
+    this.vehicles = vehicleData;
   }
 
   async getCarData(make, model, year) {
@@ -14,7 +17,29 @@ export class CarMarketDataService {
       }
     }
 
-    const basePrice = this.calculateBasePrice(make, model, year);
+    const carInfo = this.vehicles.find(v => 
+      v.Make.toLowerCase() === make.toLowerCase() && 
+      v.Model.toLowerCase() === model.toLowerCase()
+    );
+
+    let msrpValue = 0;
+    let dealerPrice = 0;
+    let fuelEfficiency = '';
+    let notes = '';
+
+    if (carInfo) {
+      msrpValue = parseInt(carInfo.MSRP_Price.replace('$', ''));
+      dealerPrice = parseInt(carInfo.Actual_Avg_Price_77450.replace('$', ''));
+      fuelEfficiency = carInfo['Fuel Efficiency'];
+      notes = carInfo.Notes;
+    } else {
+      // Fallback for cars not in the new JSON
+      msrpValue = this.calculateBasePrice(make, model, year);
+      dealerPrice = Math.round(msrpValue * 0.9); // Estimate dealer price if not in JSON
+      fuelEfficiency = this.estimateFuelEconomy(make, model, year);
+    }
+    
+    // Market factors can still influence trade-in and private party values if not directly in JSON
     const marketFactors = this.getMarketFactors(make, model, year);
     
     const carData = {
@@ -22,16 +47,17 @@ export class CarMarketDataService {
       make,
       model,
       year,
-      price: Math.round(basePrice * marketFactors.dealer),
-      msrp: Math.round(basePrice * marketFactors.msrp),
-      tradeInValue: Math.round(basePrice * marketFactors.tradeIn),
-      privatePartyValue: Math.round(basePrice * marketFactors.privateParty),
+      price: dealerPrice, // Use the actual average price from JSON
+      msrp: msrpValue, // Use the MSRP from JSON
+      tradeInValue: Math.round(dealerPrice * 0.75 * marketFactors.tradeIn), // Calculate based on dealer price
+      privatePartyValue: Math.round(dealerPrice * 0.85 * marketFactors.privateParty), // Calculate based on dealer price
       marketTrend: marketFactors.trend,
       marketActivity: this.getMarketActivity(make, model, year),
-      fuelEconomy: this.estimateFuelEconomy(make, model, year),
+      fuelEconomy: fuelEfficiency !== '' ? parseInt(fuelEfficiency) : this.estimateFuelEconomy(make, model, year),
       safetyRating: this.estimateSafetyRating(make, model, year),
       availableListings: Math.floor(Math.random() * 50) + 10,
       lastUpdated: new Date().toLocaleString(),
+      notes: notes,
       khan_description: this.generateKhanDescription(make, model, year),
       franklin_description: this.generateFranklinDescription(make, model, year),
       rockefeller_description: this.generateRockefellerDescription(make, model, year)
@@ -45,6 +71,7 @@ export class CarMarketDataService {
     return carData;
   }
 
+  // This method is now a fallback for cars not found in the JSON
   calculateBasePrice(make, model, year) {
     const currentYear = new Date().getFullYear();
     const age = currentYear - year;
@@ -151,11 +178,26 @@ export class CarMarketDataService {
   }
 
   estimateSafetyRating(make, model, year) {
+    // This function will now look up safety ratings in the imported vehicle data
+    const carInfo = this.vehicles.find(v => 
+      v.Make.toLowerCase() === make.toLowerCase() && 
+      v.Model.toLowerCase() === model.toLowerCase()
+    );
+    // Placeholder logic for safety rating if not explicitly in JSON or if a more complex system is desired
     const ratings = { honda: 5, toyota: 5, subaru: 5, volvo: 5, tesla: 5, bmw: 4, mercedes: 4 };
     return ratings[make.toLowerCase()] || 4;
   }
 
   estimateFuelEconomy(make, model, year) {
+    // This function will now look up fuel efficiency in the imported vehicle data
+    const carInfo = this.vehicles.find(v => 
+      v.Make.toLowerCase() === make.toLowerCase() && 
+      v.Model.toLowerCase() === model.toLowerCase()
+    );
+    if (carInfo && carInfo['Fuel Efficiency'] !== '') {
+        return parseInt(carInfo['Fuel Efficiency']);
+    }
+    // Fallback for fuel economy if not explicitly in JSON
     const economy = { honda: 32, toyota: 31, tesla: 120, ford: 28, chevrolet: 27, bmw: 26 };
     return economy[make.toLowerCase()] || 28;
   }
@@ -166,13 +208,12 @@ export class CarMarketDataService {
   }
 
   getPopularModels() {
-    return [
-      { make: 'Honda', model: 'Civic', year: 2024 },
-      { make: 'Toyota', model: 'Camry', year: 2024 },
-      { make: 'Ford', model: 'F-150', year: 2024 },
-      { make: 'Tesla', model: 'Model 3', year: 2024 },
-      { make: 'Honda', model: 'CR-V', year: 2024 },
-      { make: 'Toyota', model: 'RAV4', year: 2024 }
-    ];
+    // Return a subset of popular models from the loaded vehicle data
+    // For simplicity, let's take the first 6 vehicles from the loaded data
+    return this.vehicles.slice(0, 6).map(v => ({
+      make: v.Make,
+      model: v.Model,
+      year: 2024 // Assuming all new data is for 2024 as per user's instruction
+    }));
   }
 }

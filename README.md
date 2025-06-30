@@ -97,6 +97,23 @@ The application utilizes a robust internal testing framework to ensure code qual
 
 ## Bug Log
 
+### June 29, 2025 - Car Market Data Refresh
+
+**Issue:** The application was not displaying the most current automobile pricing and information, and the UI was not reflecting updates from the `vehicledata.json` file. Initial attempts to update prices were unsuccessful due to a duplicate `CarMarketDataService` class definition within `App.jsx` and incorrect data mapping.
+
+**Resolution:**
+1.  **Data Integration:**
+    *   The `vehicledata.json` file was integrated into the application by importing it into `src/services/CarMarketDataService.js`.
+    *   The `CarMarketDataService` was updated to fetch car details (make, model, MSRP, actual average price, and fuel efficiency) directly from the `vehicledata.json`.
+    *   The `price` field now uses `Actual_Avg_Price_77450` from the JSON, and `msrp` uses `MSRP_Price`. `tradeInValue` and `privatePartyValue` are calculated based on the `dealerPrice`.
+    *   The `getPopularModels` method in `CarMarketDataService.js` was updated to dynamically select popular models from the loaded JSON data.
+    *   The `estimateFuelEconomy` method in `CarMarketDataService.js` now prioritizes the 'Fuel Efficiency' data from the JSON.
+2.  **Codebase Cleanup:**
+    *   Removed the duplicate `CarMarketDataService` class definition from `src/App.jsx` to ensure that the application consistently uses the external service.
+    *   Removed the non-critical `vite.svg` link from `index.html` to resolve a 404 error, although this was not directly related to the pricing issue.
+
+**Outcome:** The application now successfully loads and displays the most current automobile information from `vehicledata.json` on the negotiation page. The pricing and other car details are accurately reflected, and the data loading mechanism is streamlined.
+
 ### June 28, 2025 - Negotiation Screen Input Unresponsive
 
 **Issue:** Users reported that the text input field and send button on the negotiation screen were unresponsive, preventing typed messages from being sent. Additionally, structured offer inputs (price, loan term, etc.) caused an error. A blank screen was also reported intermittently.
