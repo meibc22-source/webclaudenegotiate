@@ -1,0 +1,11 @@
+{
+  "basePrices": {
+    "honda": { "civic": 28000, "accord": 32000, "cr-v": 35000, "pilot": 42000 },
+    "toyota": { "camry": 32000, "corolla": 25000, "rav4": 38000, "highlander": 45000 },
+    "ford": { "f-150": 45000, "mustang": 38000, "escape": 35000, "explorer": 42000 },
+    "chevrolet": { "silverado": 43000, "malibu": 28000, "equinox": 33000, "tahoe": 58000 },
+    "bmw": { "3series": 45000, "x3": 52000, "x5": 68000 },
+    "mercedes": { "c-class": 48000, "glc": 55000, "gle": 72000 },
+    "tesla": { "model3": 42000, "modely": 52000, "models": 85000 }
+  }
+}
